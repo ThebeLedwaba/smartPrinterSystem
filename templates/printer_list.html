@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Printers - Smart Printer System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* Main content area */
+        .main-content {
+    margin-left: 280px;
+    padding: 20px;
+    min-height: 100vh;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+@media (max-width: 992px) {
+    .main-content {
+        margin-left: 0;
+        padding: 15px;
+    }
+}
+
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-radius: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header .container-fluid {
+            padding: 0 20px;
+        }
+
+        /* Printer Table */
+        .printer-table {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .printer-table .table {
+            margin-bottom: 0;
+        }
+
+        .printer-table .table thead th {
+            background: var(--dark-bg);
+            color: white;
+            border: none;
+            padding: 1.25rem 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .printer-table .table tbody td {
+            padding: 1.25rem 1rem;
+            vertical-align: middle;
+            border-color: #e9ecef;
+            transition: all 0.2s ease;
+        }
+
+        .printer-table .table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .printer-table .table tbody tr:hover {
+            background-color: rgba(102, 126, 234, 0.04);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            padding: 0.5em 0.8em;
+            font-size: 0.75em;
+            font-weight: 600;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            color: #dee2e6;
+            opacity: 0.7;
+        }
+
+        /* Search Box */
+        .search-box {
+            max-width: 400px;
+            margin-bottom: 1.5rem;
+        }
+
+        .table-responsive {
+            border-radius: 12px;
+        }
+
+        /* Button Styles */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-outline-primary, .btn-outline-warning, .btn-outline-danger {
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .btn-danger, .btn-outline-danger:hover {
+            background: linear-gradient(135deg, var(--danger-color), #c82333);
+            border: none;
+            border-radius: 6px;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 15px;
+            }
+
+            .page-header {
+                margin: -15px -15px 1.5rem -15px;
+                padding: 1.5rem 0;
+            }
+
+            .page-header .container-fluid {
+                padding: 0 15px;
+            }
+
+            .printer-table .table thead {
+                display: none;
+            }
+
+            .printer-table .table tbody tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #dee2e6;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            }
+
+            .printer-table .table tbody td {
+                display: block;
+                text-align: right;
+                padding: 1rem;
+                border: none;
+                position: relative;
+                border-bottom: 1px solid #f8f9fa;
+            }
+
+            .printer-table .table tbody td:last-child {
+                border-bottom: none;
+            }
+
+            .printer-table .table tbody td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 1rem;
+                width: 45%;
+                padding-right: 1rem;
+                font-weight: 600;
+                text-align: left;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                color: #6c757d;
+            }
+
+            .action-buttons {
+                justify-content: flex-end;
+            }
+
+            .search-box {
+                max-width: 100%;
+                margin-bottom: 1rem;
+            }
+
+            .btn-group {
+                width: 100%;
+                display: flex;
+                margin-bottom: 1rem;
+            }
+
+            .btn-group .btn {
+                flex: 1;
+                margin: 0 1px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .btn, .action-buttons, .search-box, .btn-group {
+                display: none !important;
+            }
+
+            .printer-table {
+                box-shadow: none;
+                border: 1px solid #dee2e6;
+            }
+
+            .page-header {
+                background: none !important;
+                color: black !important;
+                padding: 1rem 0;
+            }
+        }
+
+        /* Utility Classes */
+        .text-gradient {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .shadow-custom {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Ensure proper sidebar spacing */
+        .sidebar-active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Include Sidebar -->
+    {% include 'sidebar.html' %}
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h1 class="h2 mb-2">
+                            <i class="fas fa-print me-2"></i>Manage Printers
+                        </h1>
+                        <p class="mb-0 opacity-85">View and manage all printers in the system</p>
+                    </div>
+                    <div class="col-auto">
+                        {% if current_user.role in ['admin', 'technician'] %}
+                        <a href="{{ url_for('add_printer') }}" class="btn btn-light btn-lg shadow">
+                            <i class="fas fa-plus-circle me-2"></i>Add New Printer
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="container-fluid">
+            <!-- Search and Filters -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="search-box">
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="fas fa-search text-muted"></i>
+                            </span>
+                            <input type="text" id="printerSearch" class="form-control border-start-0" placeholder="Search printers by name, IP, location...">
+                            <button class="btn btn-outline-secondary border-start-0" type="button" id="clearSearch">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="btn-group shadow-sm">
+                        <button class="btn btn-outline-primary active" id="filterAll">All</button>
+                        <button class="btn btn-outline-success" id="filterOnline">Online</button>
+                        <button class="btn btn-outline-warning" id="filterOffline">Offline</button>
+                        <button class="btn btn-outline-danger" id="filterError">Error</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Printers Table -->
+            <div class="printer-table">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="printersTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th data-sort="name">Name <i class="fas fa-sort ms-1"></i></th>
+                                <th data-sort="ip">IP Address <i class="fas fa-sort ms-1"></i></th>
+                                <th data-sort="location">Location <i class="fas fa-sort ms-1"></i></th>
+                                <th data-sort="department">Department <i class="fas fa-sort ms-1"></i></th>
+                                <th data-sort="status">Status <i class="fas fa-sort ms-1"></i></th>
+                                <th style="width: 200px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if printers %}
+                                {% for p in printers %}
+                                <tr data-status="{{ p.status or 'unknown' }}">
+                                    <td data-label="Name">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-print text-primary me-3"></i>
+                                            <div>
+                                                <strong class="d-block">{{ p.name }}</strong>
+                                                {% if p.model %}
+                                                <small class="text-muted">{{ p.model }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td data-label="IP Address">
+                                        <code class="bg-light px-2 py-1 rounded">{{ p.ip }}</code>
+                                    </td>
+                                    <td data-label="Location">
+                                        <span class="fw-medium">{{ p.location or '-' }}</span>
+                                    </td>
+                                    <td data-label="Department">
+                                        {% if p.department %}
+                                        <span class="badge bg-info text-dark px-3 py-2">{{ p.department }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Status">
+                                        {% set status = p.status or 'unknown' %}
+                                        {% set status_class = {
+                                            'online': 'bg-success',
+                                            'offline': 'bg-warning text-dark',
+                                            'error': 'bg-danger',
+                                            'maintenance': 'bg-info',
+                                            'unknown': 'bg-secondary'
+                                        } %}
+                                        <span class="status-badge {{ status_class.get(status, 'bg-secondary') }}">
+                                            <i class="fas fa-circle" style="font-size: 0.5rem;"></i>
+                                            {{ status|title }}
+                                        </span>
+                                    </td>
+                                    <td data-label="Actions">
+                                        <div class="action-buttons">
+                                            <a href="{{ url_for('printer_details', printer_id=p.id) }}"
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('edit_printer', printer_id=p.id) }}"
+                                               class="btn btn-sm btn-outline-warning"
+                                               title="Edit Printer">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if current_user.role == 'admin' %}
+                                            <form method="POST" 
+                                                  action="{{ url_for('delete_printer', printer_id=p.id) }}"
+                                                  style="display:inline-block;"
+                                                  class="delete-form"
+                                                  data-printer-name="{{ p.name }}"
+                                                  data-printer-ip="{{ p.ip }}">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Printer">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6">
+                                        <div class="empty-state">
+                                            <i class="fas fa-print"></i>
+                                            <h4 class="mb-3">No Printers Found</h4>
+                                            <p class="mb-4">There are no printers in the system yet.</p>
+                                            {% if current_user.role in ['admin', 'technician'] %}
+                                            <a href="{{ url_for('add_printer') }}" class="btn btn-primary btn-lg">
+                                                <i class="fas fa-plus-circle me-2"></i>Add Your First Printer
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Table Info -->
+            {% if printers %}
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <p class="text-muted mb-0">
+                        Showing <strong id="resultCount">{{ printers|length }}</strong>
+                        printer<span id="resultPlural">{{ '' if printers|length == 1 else 's' }}</span> in total
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <button class="btn btn-outline-secondary" id="printButton">
+                        <i class="fas fa-print me-2"></i>Print List
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Print functionality
+            const printButton = document.getElementById('printButton');
+            if (printButton) {
+                printButton.addEventListener('click', function() {
+                    window.print();
+                });
+            }
+
+            // Delete form confirmations
+            document.querySelectorAll('.delete-form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const printerName = this.getAttribute('data-printer-name');
+                    const printerIp = this.getAttribute('data-printer-ip');
+                    const message = `Are you sure you want to permanently delete printer "${printerName}" (${printerIp})? This action cannot be undone.`;
+                    
+                    if (!confirm(message)) {
+                        e.preventDefault();
+                    }
+                });
+            });
+
+            // Search and Filter functionality
+            const searchInput = document.getElementById('printerSearch');
+            const clearBtn = document.getElementById('clearSearch');
+            const tbody = document.querySelector('#printersTable tbody');
+            const rows = tbody ? Array.from(tbody.querySelectorAll('tr')) : [];
+            const resultCountEl = document.getElementById('resultCount');
+            const resultPluralEl = document.getElementById('resultPlural');
+
+            // Helper to update the visible count
+            function updateResultCount(count) {
+                if (resultCountEl) resultCountEl.textContent = count;
+                if (resultPluralEl) resultPluralEl.textContent = (count === 1 ? '' : 's');
+            }
+
+            // Search functionality
+            if (searchInput) {
+                searchInput.addEventListener('input', function (e) {
+                    const term = (e.target.value || '').toLowerCase();
+                    let visible = 0;
+                    rows.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        const isVisible = text.includes(term);
+                        row.style.display = isVisible ? '' : 'none';
+                        if (isVisible) visible++;
+                    });
+                    updateResultCount(visible);
+                });
+            }
+
+            // Clear search
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function () {
+                    if (searchInput) searchInput.value = '';
+                    rows.forEach(r => r.style.display = '');
+                    updateResultCount(rows.length);
+                    if (searchInput) searchInput.focus();
+                });
+            }
+
+            // Filter buttons
+            const filterAll = document.getElementById('filterAll');
+            const filterOnline = document.getElementById('filterOnline');
+            const filterOffline = document.getElementById('filterOffline');
+            const filterError = document.getElementById('filterError');
+            const filterBtns = [filterAll, filterOnline, filterOffline, filterError].filter(Boolean);
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            function filterPrinters(status) {
+                let visible = 0;
+                rows.forEach(row => {
+                    if (status === 'all') {
+                        row.style.display = '';
+                        visible++;
+                    } else {
+                        const isVisible = (row.getAttribute('data-status') || '').toLowerCase() === status;
+                        row.style.display = isVisible ? '' : 'none';
+                        if (isVisible) visible++;
+                    }
+                });
+                updateResultCount(visible);
+            }
+
+            if (filterAll) filterAll.addEventListener('click', () => filterPrinters('all'));
+            if (filterOnline) filterOnline.addEventListener('click', () => filterPrinters('online'));
+            if (filterOffline) filterOffline.addEventListener('click', () => filterPrinters('offline'));
+            if (filterError) filterError.addEventListener('click', () => filterPrinters('error'));
+
+            // Sorting (client-side)
+            document.querySelectorAll('th[data-sort]').forEach(header => {
+                header.style.cursor = 'pointer';
+                header.addEventListener('click', function () {
+                    sortTable(this.getAttribute('data-sort'));
+                });
+            });
+
+            function sortTable(sortBy) {
+                if (!tbody) return;
+                const currentRows = Array.from(tbody.querySelectorAll('tr'));
+                const mapping = {
+                    name: 0, ip: 1, location: 2, department: 3, status: 4
+                };
+                const idx = mapping[sortBy];
+                if (idx === undefined) return;
+
+                currentRows.sort((a, b) => {
+                    const aText = (a.cells[idx] && a.cells[idx].textContent.trim()) || '';
+                    const bText = (b.cells[idx] && b.cells[idx].textContent.trim()) || '';
+                    return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                // Re-append rows
+                currentRows.forEach(r => tbody.appendChild(r));
+            }
+
+            // Keyboard shortcut for search (Ctrl+K)
+            document.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    if (searchInput) searchInput.focus();
+                }
+            });
+
+            // Auto-focus search
+            if (searchInput) searchInput.focus();
+
+            // Initialize visible count
+            updateResultCount(rows.length);
+        });
+    </script>
+</body>
+</html>

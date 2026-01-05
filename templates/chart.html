@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Printer Status Analytics - Smart Printer Monitoring</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #17a2b8;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #2c3e50;
+            min-height: 100vh;
+        }
+        
+        .chart-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+        
+        .stat-card {
+            padding: 25px 20px;
+            border-radius: 15px;
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .stat-card.online { 
+            background: linear-gradient(135deg, var(--success), #229954);
+        }
+        .stat-card.offline { 
+            background: linear-gradient(135deg, var(--danger), #c0392b);
+        }
+        .stat-card.unknown { 
+            background: linear-gradient(135deg, var(--warning), #e67e22);
+        }
+        .stat-card.total { 
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+        }
+        
+        .stat-number {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin: 15px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .stat-percentage {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            padding: 20px;
+        }
+        
+        .section-title {
+            color: var(--dark);
+            font-weight: 700;
+            margin-bottom: 25px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            border-radius: 2px;
+        }
+        
+        .btn-analytics {
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+        
+        .btn-analytics:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .last-updated {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .chart-controls {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .trend-indicator {
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+        
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .chart-type-btn {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 8px 15px;
+            margin: 0 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chart-type-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="chart-container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ url_for('index') }}" class="btn btn-light btn-analytics mb-2">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+                <h1 class="h2 mb-1 text-white">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Printer Status Analytics
+                </h1>
+                <p class="text-white-50 mb-0">Real-time printer status distribution and insights</p>
+            </div>
+            <div class="text-end">
+                <button class="btn btn-light btn-analytics" onclick="refreshData()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card total">
+                    <i class="fas fa-print fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ counts.online + counts.offline + counts.unknown }}</div>
+                    <div class="stat-label">Total Printers</div>
+                    <div class="stat-percentage">100% of fleet</div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card online pulse">
+                    <i class="fas fa-wifi fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ counts.online }}</div>
+                    <div class="stat-label">Online</div>
+                    <div class="stat-percentage">
+                        {{ "%.1f"|format((counts.online/(counts.online + counts.offline + counts.unknown)*100)) if (counts.online + counts.offline + counts.unknown) > 0 else 0 }}% Operational
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card offline">
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ counts.offline }}</div>
+                    <div class="stat-label">Offline</div>
+                    <div class="stat-percentage">
+                        {{ "%.1f"|format((counts.offline/(counts.online + counts.offline + counts.unknown)*100)) if (counts.online + counts.offline + counts.unknown) > 0 else 0 }}% Attention Needed
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card unknown">
+                    <i class="fas fa-question-circle fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ counts.unknown }}</div>
+                    <div class="stat-label">Unknown</div>
+                    <div class="stat-percentage">
+                        {{ "%.1f"|format((counts.unknown/(counts.online + counts.offline + counts.unknown)*100)) if (counts.online + counts.offline + counts.unknown) > 0 else 0 }}% Status Unknown
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Controls -->
+        <div class="chart-controls glass-card mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h6 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Chart Controls</h6>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="btn-group">
+                        <span class="chart-type-btn active" onclick="changeChartType('doughnut')">
+                            <i class="fas fa-chart-pie me-1"></i>Doughnut
+                        </span>
+                        <span class="chart-type-btn" onclick="changeChartType('pie')">
+                            <i class="fas fa-chart-pie me-1"></i>Pie
+                        </span>
+                        <span class="chart-type-btn" onclick="changeChartType('bar')">
+                            <i class="fas fa-chart-bar me-1"></i>Bar
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="glass-card">
+            <div class="card-body">
+                <h3 class="section-title">
+                    <i class="fas fa-network-wired me-2"></i>
+                    Printer Status Distribution
+                </h3>
+                <div class="chart-wrapper">
+                    <canvas id="statusChart"></canvas>
+                </div>
+                
+                <!-- Additional Insights -->
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>System Health</h6>
+                            <small>
+                                {% set total = counts.online + counts.offline + counts.unknown %}
+                                {% if total > 0 %}
+                                    {% set health_score = (counts.online / total * 100) %}
+                                    {% if health_score >= 90 %}
+                                        Excellent system health with {{ "%.1f"|format(health_score) }}% uptime
+                                    {% elif health_score >= 75 %}
+                                        Good system health with {{ "%.1f"|format(health_score) }}% uptime
+                                    {% else %}
+                                        System needs attention with {{ "%.1f"|format(health_score) }}% uptime
+                                    {% endif %}
+                                {% else %}
+                                    No printer data available
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb me-2"></i>Recommendations</h6>
+                            <small>
+                                {% if counts.offline > 0 %}
+                                    {{ counts.offline }} printer(s) require immediate attention
+                                {% else %}
+                                    All printers are operational. Great job!
+                                {% endif %}
+                                {% if counts.unknown > 0 %}
+                                    <br>{{ counts.unknown }} printer(s) need status verification
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Last Updated -->
+                {% if last_checked %}
+                <div class="last-updated">
+                    <i class="fas fa-clock me-2"></i>
+                    Last checked: <strong>{{ last_checked }}</strong>
+                    <span class="ms-2">•</span>
+                    <span class="ms-2">Auto-refresh in <span id="refreshCountdown">300</span>s</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Trend Analysis -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="glass-card p-3 text-center">
+                    <i class="fas fa-trend-up fa-2x text-success mb-2"></i>
+                    <h5>Uptime Trend</h5>
+                    <div class="h4 text-success">
+                        {% set total = counts.online + counts.offline + counts.unknown %}
+                        {{ "%.1f"|format((counts.online / total * 100) if total > 0 else 0) }}%
+                    </div>
+                    <small class="text-muted">Current Uptime</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card p-3 text-center">
+                    <i class="fas fa-bell fa-2x text-warning mb-2"></i>
+                    <h5>Alerts</h5>
+                    <div class="h4 text-warning">{{ counts.offline + counts.unknown }}</div>
+                    <small class="text-muted">Printers Needing Attention</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="glass-card p-3 text-center">
+                    <i class="fas fa-bolt fa-2x text-primary mb-2"></i>
+                    <h5>Efficiency</h5>
+                    <div class="h4 text-primary">
+                        {% set total = counts.online + counts.offline + counts.unknown %}
+                        {% set efficiency = (counts.online / total * 100) if total > 0 else 0 %}
+                        {% if efficiency >= 90 %}
+                            95%
+                        {% elif efficiency >= 75 %}
+                            85%
+                        {% else %}
+                            65%
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">System Efficiency Score</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentChart;
+        let refreshTimer = 300; // 5 minutes
+        
+        // Initialize the chart
+        function initChart(type = 'doughnut') {
+            const ctx = document.getElementById('statusChart').getContext('2d');
+            const total = {{ counts.online + counts.offline + counts.unknown }};
+            
+            const data = {
+                labels: [
+                    `✅ Online (${(({{ counts.online }} / total) * 100).toFixed(1)}%)`,
+                    `❌ Offline (${(({{ counts.offline }} / total) * 100).toFixed(1)}%)`,
+                    `❓ Unknown (${(({{ counts.unknown }} / total) * 100).toFixed(1)}%)`
+                ],
+                datasets: [{
+                    data: [{{ counts.online }}, {{ counts.offline }}, {{ counts.unknown }}],
+                    backgroundColor: [
+                        'rgba(39, 174, 96, 0.8)',
+                        'rgba(231, 76, 60, 0.8)',
+                        'rgba(243, 156, 18, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(39, 174, 96, 1)',
+                        'rgba(231, 76, 60, 1)',
+                        'rgba(243, 156, 18, 1)'
+                    ],
+                    borderWidth: 2,
+                    hoverOffset: 15
+                }]
+            };
+            
+            const config = {
+                type: type,
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                font: {
+                                    size: 12,
+                                    weight: '600'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                size: 14,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                size: 13
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${value} printers (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 14
+                            },
+                            formatter: (value) => {
+                                return value;
+                            }
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true
+                    },
+                    cutout: type === 'doughnut' ? '60%' : '0%'
+                },
+                plugins: [ChartDataLabels]
+            };
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            currentChart = new Chart(ctx, config);
+        }
+        
+        // Change chart type
+        function changeChartType(type) {
+            // Update active button
+            document.querySelectorAll('.chart-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            initChart(type);
+        }
+        
+        // Refresh data
+        function refreshData() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Refreshing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+        
+        // Auto-refresh countdown
+        function startCountdown() {
+            const countdownElement = document.getElementById('refreshCountdown');
+            if (!countdownElement) return;
+            
+            setInterval(() => {
+                refreshTimer--;
+                countdownElement.textContent = refreshTimer;
+                
+                if (refreshTimer <= 0) {
+                    refreshTimer = 300;
+                    location.reload();
+                }
+            }, 1000);
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            startCountdown();
+            
+            // Add hover effects to stat cards
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.style.transform = 'translateY(-5px)';
+                });
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+        });
+    </script>
+</body>
+</html>

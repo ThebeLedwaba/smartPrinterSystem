@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Printer - Smart Printer Monitoring</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        :root{
+            --bg:#f5f7fa;--card-bg:#fff;--text:#333;--primary:#0078d7;
+            --danger:#dc3545;--success:#28a745;--warning:#ffc107;
+            --muted:#6c757d;--border:#dee2e6;--shadow:0 4px 12px rgba(0,0,0,.08);
+        }
+        [data-theme=dark]{
+            --bg:#1a1a1a;--card-bg:#2d2d2d;--text:#e0e0e0;
+            --primary:#0d6efd;--muted:#adb5bd;--border:#444;
+            --shadow:0 4px 12px rgba(0,0,0,.3);
+        }
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Segoe UI',sans-serif;background:var(--bg);color:var(--text);transition:background .3s,color .3s;}
+        a{color:inherit;text-decoration:none;}
+
+        .wrapper{display:flex;min-height:100vh;}
+        .sidebar{width:250px;background:linear-gradient(180deg,#667eea,#764ba2);color:#fff;padding:20px;display:flex;flex-direction:column;}
+        .sidebar h2{margin-bottom:30px;text-align:center;font-size:1.4rem;}
+        .sidebar a{display:block;padding:12px 15px;margin-bottom:8px;border-radius:8px;transition:.3s;}
+        .sidebar a:hover{background:rgba(255,255,255,.2);}
+        .sidebar a.active{background:rgba(255,255,255,.3);font-weight:600;}
+
+        .main{flex:1;padding:30px;overflow:auto;}
+        .page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap:wrap;gap:15px;}
+        .page-header h1{font-size:1.8rem;color:var(--text);}
+
+        .btn{padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:.3s;background:var(--primary);color:#fff;}
+        .btn:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(0,0,0,.15);}
+        .btn-secondary{background:var(--muted);color:#fff;}
+        .btn-danger{background:var(--danger);}
+        .btn-sm{padding:6px 12px;font-size:.875rem;}
+        .btn:disabled{opacity:0.6;cursor:not-allowed;transform:none !important;}
+
+        .flash{padding:14px;border-radius:8px;margin-bottom:15px;font-weight:500;}
+        .flash.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}
+        .flash.danger{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}
+        .flash.warning{background:#fff3cd;color:#856404;border:1px solid #ffeaa7;}
+
+        .card{background:var(--card-bg);border-radius:15px;padding:25px;margin-bottom:25px;box-shadow:var(--shadow);max-width:600px;margin:0 auto;}
+        .header-actions{display:flex;gap:10px;align-items:center;}
+
+        .form-container{max-width:500px;margin:0 auto;}
+        .form-group{margin-bottom:25px;}
+        .form-group label{display:block;margin-bottom:8px;font-weight:600;color:var(--text);font-size:1rem;}
+        .form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 16px;border:2px solid var(--border);border-radius:8px;font-size:14px;background:var(--card-bg);color:var(--text);transition:border-color .3s,box-shadow .3s;}
+        .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,120,215,.1);}
+        .form-group .help-text{font-size:.875rem;color:var(--muted);margin-top:6px;}
+        .form-actions{display:flex;gap:15px;margin-top:30px;}
+        .form-actions .btn{flex:1;}
+
+        .printer-preview{background:var(--bg);padding:20px;border-radius:10px;margin-top:30px;border:2px dashed var(--border);}
+        .printer-preview h4{margin-bottom:15px;color:var(--text);}
+        .preview-item{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);}
+        .preview-item:last-child{border-bottom:none;}
+
+        /* Validation styles */
+        .validation-feedback{font-size:.875rem;margin-top:6px;display:none;}
+        .validation-feedback.valid{color:var(--success);display:block;}
+        .validation-feedback.invalid{color:var(--danger);display:block;}
+        .input-valid{border-color:var(--success) !important;}
+        .input-invalid{border-color:var(--danger) !important;}
+
+        .ip-validation{display:flex;align-items:center;gap:8px;margin-top:6px;}
+        .ip-status{font-size:.875rem;font-weight:500;}
+        .ip-status.valid{color:var(--success);}
+        .ip-status.invalid{color:var(--danger);}
+
+        .loading-spinner{display:none;width:16px;height:16px;border:2px solid transparent;border-top:2px solid currentColor;border-radius:50%;animation:spin 1s linear infinite;}
+        @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+
+        @media (max-width:768px){
+            .wrapper{flex-direction:column;}
+            .sidebar{width:100%;flex-direction:row;overflow-x:auto;gap:8px;padding:12px;}
+            .sidebar h2{display:none;}
+            .sidebar a{white-space:nowrap;min-width:110px;text-align:center;}
+            .main{padding:15px;}
+            .page-header{flex-direction:column;align-items:flex-start;}
+            .form-actions{flex-direction:column;}
+        }
+    </style>
+</head>
+
+<body data-theme="light">
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav class="sidebar" aria-label="Main navigation">
+        <h2>Printer Monitor</h2>
+        <a href="{{ url_for('index') }}">Printers List</a>
+        <a href="{{ url_for('chart') }}">Status Chart</a>
+        <a href="{{ url_for('analytics') }}">Analytics</a>
+        <a href="{{ url_for('alerts') }}">Alerts</a>
+        <a href="{{ url_for('add_printer') }}" class="active">Add Printer</a>
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('user_management') }}">Users</a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+
+    <!-- Main -->
+    <main class="main">
+        {% if current_user.is_authenticated %}
+            <header class="page-header">
+                <h1>➕ Add New Printer</h1>
+                <div class="header-actions">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to Printers</a>
+                    <button id="themeToggle" class="btn btn-secondary btn-sm" aria-label="Toggle dark mode">
+                        <span class="light">Dark Mode</span>
+                        <span class="dark" style="display:none;">Light Mode</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, msg in messages %}
+                    <div class="flash {{ category }}">{{ msg }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="card">
+                <h3 style="margin-bottom: 25px; color: var(--text);">Printer Information</h3>
+                
+                <form method="post" action="{{ url_for('add_printer') }}" class="form-container" id="printerForm">
+                    <!-- CSRF Protection -->
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="form-group">
+                        <label for="name">
+                            <i class="fas fa-print" style="margin-right: 8px;"></i>
+                            Printer Name *
+                        </label>
+                        <input type="text" id="name" name="name" required 
+                               placeholder="e.g. HP LaserJet Pro M404dn"
+                               oninput="updatePreview()">
+                        <div class="help-text">A descriptive name for identifying the printer</div>
+                        <div class="validation-feedback" id="name-feedback">Name is required</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ip">
+                            <i class="fas fa-network-wired" style="margin-right: 8px;"></i>
+                            IP Address *
+                        </label>
+                        <input type="text" id="ip" name="ip" required 
+                               placeholder="192.168.0.110"
+                               pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$"
+                               oninput="validateIP()">
+                        <div class="help-text">The network IP address of the printer (private IP ranges only)</div>
+                        <div class="ip-validation">
+                            <span class="ip-status" id="ip-status">Enter a valid IP address</span>
+                            <div class="loading-spinner" id="ip-loading"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="location">
+                            <i class="fas fa-map-marker-alt" style="margin-right: 8px;"></i>
+                            Location
+                        </label>
+                        <input type="text" id="location" name="location" 
+                               placeholder="e.g. Finance Department, Floor 3"
+                               oninput="updatePreview()">
+                        <div class="help-text">Physical location of the printer (optional)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="department">
+                            <i class="fas fa-building" style="margin-right: 8px;"></i>
+                            Department
+                        </label>
+                        <select id="department" name="department" onchange="updatePreview()">
+                            <option value="">Select Department</option>
+                            <option value="Finance">Finance</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="IT">IT Department</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Other">Other</option>
+                        </select>
+                        <div class="help-text">Department responsible for this printer</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="model">
+                            <i class="fas fa-cog" style="margin-right: 8px;"></i>
+                            Printer Model
+                        </label>
+                        <input type="text" id="model" name="model" 
+                               placeholder="e.g. HP LaserJet Pro M404dn"
+                               oninput="updatePreview()">
+                        <div class="help-text">Manufacturer and model number (optional)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">
+                            <i class="fas fa-sticky-note" style="margin-right: 8px;"></i>
+                            Additional Notes
+                        </label>
+                        <textarea id="notes" name="notes" rows="3" 
+                                  placeholder="Any additional information about this printer..."
+                                  oninput="updatePreview()"></textarea>
+                        <div class="help-text">Serial number, special configurations, etc.</div>
+                    </div>
+
+                    <!-- Printer Preview -->
+                    <div class="printer-preview">
+                        <h4>📋 Printer Preview</h4>
+                        <div class="preview-item">
+                            <span><strong>Name:</strong></span>
+                            <span id="preview-name" style="color: var(--muted);">Not set</span>
+                        </div>
+                        <div class="preview-item">
+                            <span><strong>IP Address:</strong></span>
+                            <span id="preview-ip" style="color: var(--muted);">Not set</span>
+                        </div>
+                        <div class="preview-item">
+                            <span><strong>Location:</strong></span>
+                            <span id="preview-location" style="color: var(--muted);">Not set</span>
+                        </div>
+                        <div class="preview-item">
+                            <span><strong>Department:</strong></span>
+                            <span id="preview-department" style="color: var(--muted);">Not set</span>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-plus" style="margin-right: 8px;"></i>
+                            Add Printer
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        {% else %}
+            <div style="text-align:center;padding:60px;">
+                <h2>Please log in to add printers</h2>
+                <a href="{{ url_for('login') }}" class="btn btn-primary" style="margin-top:20px;">Login</a>
+            </div>
+        {% endif %}
+    </main>
+</div>
+
+<script>
+/* ---------- DARK MODE ---------- */
+document.getElementById('themeToggle')?.addEventListener('click', function(){
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    document.querySelectorAll('#themeToggle span').forEach(function(span){
+        span.style.display = 'none';
+    });
+    document.querySelector('#themeToggle .' + (isDark ? 'light' : 'dark')).style.display = 'inline';
+});
+
+/* ---------- IP VALIDATION ---------- */
+function validateIP() {
+    const ipInput = document.getElementById('ip');
+    const ipStatus = document.getElementById('ip-status');
+    const ipLoading = document.getElementById('ip-loading');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    const ip = ipInput.value.trim();
+    updatePreview(); // Update preview immediately
+    
+    // Basic IP format validation
+    const ipPattern = /^([0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    
+    if (!ip) {
+        ipStatus.textContent = 'Enter a valid IP address';
+        ipStatus.className = 'ip-status';
+        ipInput.classList.remove('input-valid', 'input-invalid');
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    if (!ipPattern.test(ip)) {
+        ipStatus.textContent = 'Invalid IP format (e.g., 192.168.0.110)';
+        ipStatus.className = 'ip-status invalid';
+        ipInput.classList.remove('input-valid');
+        ipInput.classList.add('input-invalid');
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    // Show loading while validating IP ranges
+    ipLoading.style.display = 'inline-block';
+    ipStatus.textContent = 'Validating IP range...';
+    ipStatus.className = 'ip-status';
+    
+    // Simulate IP validation (in real app, this would be server-side)
+    setTimeout(() => {
+        ipLoading.style.display = 'none';
+        
+        // Check if IP is in private ranges
+        const parts = ip.split('.');
+        const first = parseInt(parts[0]);
+        const second = parseInt(parts[1]);
+        
+        let isValidPrivateIP = false;
+        
+        // Private IP ranges:
+        // 10.0.0.0 - 10.255.255.255
+        // 172.16.0.0 - 172.31.255.255  
+        // 192.168.0.0 - 192.168.255.255
+        if (first === 10) {
+            isValidPrivateIP = true;
+        } else if (first === 172 && second >= 16 && second <= 31) {
+            isValidPrivateIP = true;
+        } else if (first === 192 && second === 168) {
+            isValidPrivateIP = true;
+        } else if (first === 127) {
+            // Localhost
+            isValidPrivateIP = true;
+        }
+        
+        if (isValidPrivateIP) {
+            ipStatus.textContent = '✓ Valid private IP address';
+            ipStatus.className = 'ip-status valid';
+            ipInput.classList.remove('input-invalid');
+            ipInput.classList.add('input-valid');
+            submitBtn.disabled = false;
+        } else {
+            ipStatus.textContent = '✗ Please use a private IP address (10.x, 172.16-31.x, 192.168.x)';
+            ipStatus.className = 'ip-status invalid';
+            ipInput.classList.remove('input-valid');
+            ipInput.classList.add('input-invalid');
+            submitBtn.disabled = true;
+        }
+    }, 800);
+}
+
+/* ---------- PREVIEW UPDATE ---------- */
+function updatePreview() {
+    // Update name preview
+    const name = document.getElementById('name').value;
+    document.getElementById('preview-name').textContent = name || 'Not set';
+    document.getElementById('preview-name').style.color = name ? 'var(--success)' : 'var(--muted)';
+
+    // Update IP preview
+    const ip = document.getElementById('ip').value;
+    document.getElementById('preview-ip').textContent = ip || 'Not set';
+    document.getElementById('preview-ip').style.color = ip ? 'var(--success)' : 'var(--muted)';
+
+    // Update location preview
+    const location = document.getElementById('location').value;
+    document.getElementById('preview-location').textContent = location || 'Not set';
+    document.getElementById('preview-location').style.color = location ? 'var(--success)' : 'var(--muted)';
+
+    // Update department preview
+    const department = document.getElementById('department').value;
+    document.getElementById('preview-department').textContent = department || 'Not set';
+    document.getElementById('preview-department').style.color = department ? 'var(--success)' : 'var(--muted)';
+}
+
+/* ---------- FORM VALIDATION & SUBMISSION ---------- */
+document.getElementById('printerForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    const ipInput = document.getElementById('ip');
+    
+    // Final validation
+    if (ipInput.classList.contains('input-invalid')) {
+        e.preventDefault();
+        alert('Please fix the IP address validation errors before submitting.');
+        ipInput.focus();
+        return false;
+    }
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="loading-spinner" style="display:inline-block;margin-right:8px;"></div> Adding Printer...';
+});
+
+// Real-time validation
+document.getElementById('name').addEventListener('input', function() {
+    const name = this.value.trim();
+    const feedback = document.getElementById('name-feedback');
+    
+    if (!name) {
+        this.classList.add('input-invalid');
+        feedback.classList.add('invalid');
+        feedback.textContent = 'Name is required';
+    } else {
+        this.classList.remove('input-invalid');
+        this.classList.add('input-valid');
+        feedback.classList.remove('invalid');
+        feedback.textContent = '✓ Name looks good';
+        feedback.classList.add('valid');
+    }
+    updatePreview();
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updatePreview();
+    validateIP(); // Initial IP validation
+    
+    // Disable submit button until valid
+    document.getElementById('submitBtn').disabled = true;
+});
+</script>
+</body>
+</html>

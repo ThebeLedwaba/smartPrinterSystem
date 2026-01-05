@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Reports - {{ ENTERPRISE_NAME }} Printer Intelligence</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Bootstrap 5.3 + Chart.js -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3"></script>
+    
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --sidebar-width: 260px;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            color: #334155;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* Layout */
+        .sidebar {
+            position: fixed;
+            top: 0; left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            z-index: 1030;
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin-left 0.4s ease;
+            padding: 2rem;
+            background: transparent;
+        }
+
+        @media (max-width: 992px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0 !important; padding: 1rem; }
+            .sidebar.show { transform: translateX(0); }
+        }
+
+        /* Header */
+        .page-header {
+            background: white;
+            border-radius: 16px;
+            padding: 1.8rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: all 0.4s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+
+        .executive-kpi {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+        }
+
+        .metric-number {
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .metric-label {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            opacity: 0.9;
+        }
+
+        .trend-up { color: #86efac; }
+        .trend-down { color: #fca5a5; }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem 0;
+        }
+
+        /* Table */
+        .table-modern {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .table-modern th {
+            background: #f1f5f9;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.8px;
+            color: #64748b;
+        }
+
+        /* Badges */
+        .badge-pro {
+            padding: 0.5em 1em;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.7s ease-out;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Print Styles */
+        @media print {
+            .sidebar, .export-buttons, .no-print { display: none !important; }
+            .main-content { margin-left: 0 !important; padding: 0.5cm; }
+            body { background: white; font-size: 10pt; }
+            .glass-card, .card { box-shadow: none; border: 1px solid #ddd; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        {% include 'sidebar.html' %}
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- Header -->
+        <div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h1 class="h2 fw-bold text-dark mb-1">
+                    <i class="fas fa-chart-line text-primary me-3"></i>Executive Dashboard
+                </h1>
+                <p class="text-muted mb-0">Real-time Business Intelligence • {{ now.strftime('%B %Y') }}</p>
+            </div>
+            <div class="export-buttons no-print">
+                <div class="btn-group shadow-sm">
+                    <a href="{{ url_for('export_executive_report', format='pdf') }}" class="btn btn-danger">
+                        <i class="fas fa-file-pdf me-2"></i>Download PDF
+                    </a>
+                    <a href="{{ url_for('export_executive_report', format='csv') }}" class="btn btn-success">
+                        <i class="fas fa-file-csv me-2"></i>Export CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Banner -->
+        <div class="executive-kpi p-4 mb-5 fade-in">
+            <div class="row text-center g-4">
+                <div class="col-md-3">
+                    <h3 class="metric-number">{{ currency }}8.2M</h3>
+                    <div class="metric-label">Annual Savings Potential</div>
+                    <div class="mt-2"><span class="badge bg-light text-dark">820% ROI</span></div>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="metric-number">{{ "%.1f"|format(uptime_percentage) }}%</h3>
+                    <div class="metric-label">Fleet Uptime</div>
+                    <div class="trend-up small"><i class="fas fa-arrow-up"></i> +7.7% vs Industry</div>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="metric-number">{{ total_printers }}</h3>
+                    <div class="metric-label">Active Printers</div>
+                    <div class="small text-success">{{ online_printers }} Online • {{ total_printers - online_printers }} Offline</div>
+                </div>
+                <div class="col-md-3">
+                    <h3 class="metric-number">{{ currency }}{{ "%.0f"|format(monthly_cost) }}</h3>
+                    <div class="metric-label">Monthly Spend</div>
+                    <div class="trend-down small"><i class="fas fa-arrow-down"></i> -23% vs Last Month</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <!-- Financial Impact -->
+            <div class="col-lg-8">
+                <div class="glass-card fade-in h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="fw-bold text-success"><i class="fas fa-dollar-sign me-2"></i>Financial Impact Analysis</h4>
+                            <span class="badge-pro bg-success">23% Total Savings Achieved</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-modern table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th class="text-end">Current</th>
+                                        <th class="text-end">Optimized</th>
+                                        <th class="text-end">Savings</th>
+                                        <th class="text-center">Impact</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="fw-medium">
+                                    <tr>
+                                        <td>IT Labor Costs</td>
+                                        <td class="text-end text-muted">{{ currency }}936K</td>
+                                        <td class="text-end text-success">{{ currency }}281K</td>
+                                        <td class="text-end text-success fw-bold">{{ currency }}655K</td>
+                                        <td class="text-center"><span class="badge bg-success">70%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Downtime Losses</td>
+                                        <td class="text-end text-muted">{{ currency }}9.0M</td>
+                                        <td class="text-end text-success">{{ currency }}7.2M</td>
+                                        <td class="text-end text-success fw-bold">{{ currency }}1.8M</td>
+                                        <td class="text-center"><span class="badge bg-warning text-dark">20%</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Supply Waste</td>
+                                        <td class="text-end text-muted">{{ currency }}720K</td>
+                                        <td class="text-end text-success">{{ currency }}0</td>
+                                        <td class="text-end text-success fw-bold">{{ currency }}720K</td>
+                                        <td class="text-center"><span class="badge bg-danger">100%</span></td>
+                                    </tr>
+                                    <tr class="table-primary fw-bold">
+                                        <td>TOTAL IMPACT</td>
+                                        <td class="text-end">{{ currency }}10.7M</td>
+                                        <td class="text-end text-success">{{ currency }}8.2M</td>
+                                        <td class="text-end text-success">{{ currency }}2.5M</td>
+                                        <td class="text-center"><span class="badge bg-primary">23%</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Insights -->
+            <div class="col-lg-4">
+                <div class="glass-card fade-in h-100">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold text-warning mb-4"><i class="fas fa-brain me-2"></i>AI Predictive Insights</h5>
+                        {% if ml_insights %}
+                            {% for insight in ml_insights|slice(0, 4) %}
+                            <div class="border-start border-warning border-4 ps-3 mb-3 pb-3">
+                                <div class="d-flex justify-content-between">
+                                    <strong class="small">{{ insight.printer_name|truncate(22) }}</strong>
+                                    <span class="badge {{ 'bg-danger' if insight.confidence >= 90 else 'bg-warning text-dark' }}">
+                                        {{ insight.confidence }}%
+                                    </span>
+                                </div>
+                                <p class="small text-muted mt-1 mb-2">{{ insight.message }}</p>
+                                <div class="d-flex justify-content-between small">
+                                    <span class="text-success fw-bold">Save {{ currency }}{{ insight.estimated_savings }}</span>
+                                    <span class="text-info"><i class="fas fa-clock"></i> {{ insight.timeline_days }} days</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <div class="text-center pt-3 border-top">
+                                <strong class="text-success">Total Potential: {{ currency }}{{ total_potential_savings|round|int }}</strong>
+                            </div>
+                        {% else %}
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-robot fa-3x mb-3 opacity-50"></i>
+                                <p>No active predictions</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-6">
+                <div class="glass-card fade-in">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4"><i class="fas fa-building text-primary me-2"></i>Cost by Department</h5>
+                        <div class="chart-container">
+                            <canvas id="departmentCostChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="glass-card fade-in">
+                    <div class="card-body p-4">
+                        <h5 class="fw-bold mb-4"><i class="fas fa-chart-line text-success me-2"></i>Monthly Print Volume</h5>
+                        <div class="chart-container">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Department Table -->
+        <div class="glass-card fade-in">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold"><i class="fas fa-table text-info me-2"></i>Department Performance</h5>
+                    <span class="badge bg-info">Live • Updated {{ now.strftime('%H:%M') }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-modern table-hover">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th class="text-center">Printers</th>
+                                <th class="text-center">Online</th>
+                                <th class="text-center">Uptime</th>
+                                <th class="text-end">Monthly Cost</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dept in dept_usage %}
+                            {% set uptime = (dept.online_count / dept.printer_count * 100) if dept.printer_count else 0 %}
+                            <tr>
+                                <td class="fw-semibold">{{ dept.department or "Unassigned" }}</td>
+                                <td class="text-center">{{ dept.printer_count }}</td>
+                                <td class="text-center text-success fw-bold">{{ dept.online_count }}</td>
+                                <td class="text-center">
+                                    <span class="badge {{ 'bg-success' if uptime >= 95 else 'bg-warning' if uptime >= 80 else 'bg-danger' }}">
+                                        {{ "%.1f"|format(uptime) }}%
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold">
+                                    {% for c in dept_costs if c.department == dept.department %}
+                                        {{ currency }}{{ "%.0f"|format(c.cost or 0) }}
+                                    {% endfor %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge {{ 'bg-success' if dept.online_count == dept.printer_count else 'bg-warning text-dark' }}">
+                                        {{ "Healthy" if dept.online_count == dept.printer_count else "Needs Review" }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-5 py-4 text-muted small">
+            <i class="fas fa-shield-alt me-1"></i>
+            Report Generated on {{ now.strftime('%d %B %Y at %H:%M') }} • 
+            {{ ENTERPRISE_NAME }} Confidential • Powered by Smart Printer Intelligence
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Animation on scroll
+            const observer = new IntersectionObserver(entries => {
+                entries.forEach(e => e.isIntersecting && e.target.classList.add('visible'));
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+            // Charts
+            setTimeout(() => {
+                new Chart(document.getElementById('departmentCostChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: [{% for d in dept_costs %}'{{ d.department or "Unassigned" }}'{{ ',' if not loop.last }}{% endfor %}],
+                        datasets: [{
+                            data: [{% for d in dept_costs %}{{ d.cost or 0 }}{{ ',' if not loop.last }}{% endfor %}],
+                            backgroundColor: ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'],
+                            borderWidth: 3,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { padding: 20, usePointStyle: true } }
+                        }
+                    }
+                });
+
+                new Chart(document.getElementById('monthlyChart'), {
+                    type: 'line',
+                    data: {
+                        labels: [{% for m in monthly_data %}'{{ m.month[5:7] }}/{{ m.month[2:4] }}'{{ ',' if not loop.last }}{% endfor %}],
+                        datasets: [{
+                            label: 'Pages Printed',
+                            data: [{% for m in monthly_data %}{{ m.pages or 0 }}{{ ',' if not loop.last }}{% endfor %}],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }, 300);
+        });
+    </script>
+</body>
+</html>

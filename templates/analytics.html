@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analytics - Smart Printer Monitoring</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #17a2b8;
+            --dark: #2c3e50;
+            --light: #ecf0f1;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #2c3e50;
+            min-height: 100vh;
+        }
+        
+        .analytics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,0.95);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+            color: white;
+            border-bottom: none;
+            padding: 15px 20px;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            text-align: center;
+            padding: 25px 15px;
+            border-radius: 12px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .stat-card.total { background: linear-gradient(135deg, var(--primary), #2980b9); }
+        .stat-card.online { background: linear-gradient(135deg, var(--success), #229954); }
+        .stat-card.offline { background: linear-gradient(135deg, var(--danger), #c0392b); }
+        .stat-card.pages { background: linear-gradient(135deg, var(--warning), #e67e22); }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 15px;
+        }
+        
+        .section-title {
+            color: var(--dark);
+            font-weight: 700;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary);
+            padding-left: 15px;
+        }
+        
+        .filter-bar {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metric-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 8px;
+            margin-left: 5px;
+        }
+        
+        .trend-indicator {
+            font-size: 0.8rem;
+            margin-left: 5px;
+        }
+        
+        .trend-up { color: var(--success); }
+        .trend-down { color: var(--danger); }
+        
+        .user-rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .user-rank-1 { background: linear-gradient(135deg, #ffd700, #ffa500); }
+        .user-rank-2 { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); }
+        .user-rank-3 { background: linear-gradient(135deg, #cd7f32, #a56a2b); }
+        
+        .btn-analytics {
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-analytics:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        .data-refresh {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container py-4">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <a href="{{ url_for('index') }}" class="btn btn-light btn-sm mb-2">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-chart-line text-primary me-2"></i>
+                    Advanced Printer Analytics
+                </h1>
+                <p class="text-muted mb-0">Comprehensive insights and performance metrics</p>
+            </div>
+            <div class="text-end">
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="exportCharts()">
+                        <i class="fas fa-download me-1"></i>Export
+                    </button>
+                </div>
+                <div class="data-refresh">
+                    Last updated: <span id="lastUpdated">{{ now.strftime('%Y-%m-%d %H:%M') if now else 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Time Range</label>
+                    <select class="form-select" id="timeRange" onchange="updateCharts()">
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d" selected>Last 30 Days</option>
+                        <option value="90d">Last 90 Days</option>
+                        <option value="1y">Last Year</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Department</label>
+                    <select class="form-select" id="departmentFilter" onchange="updateCharts()">
+                        <option value="all">All Departments</option>
+                        <option value="IT">IT</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Finance">Finance</option>
+                        <option value="HR">HR</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Metric</label>
+                    <select class="form-select" id="metricFilter" onchange="updateCharts()">
+                        <option value="pages">Pages Printed</option>
+                        <option value="cost">Printing Cost</option>
+                        <option value="jobs">Print Jobs</option>
+                        <option value="uptime">Uptime</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" onclick="applyFilters()">
+                        <i class="fas fa-filter me-2"></i>Apply Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Statistics -->
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card total">
+                    <i class="fas fa-print fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ printers_count }}</div>
+                    <div class="stat-label">Total Printers</div>
+                    <small>Across all departments</small>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card online">
+                    <i class="fas fa-wifi fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ status_counts.online }}</div>
+                    <div class="stat-label">Online Printers</div>
+                    <small>{{ "%.1f"|format((status_counts.online/printers_count)*100) if printers_count > 0 else 0 }}% Uptime</small>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card offline">
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ status_counts.offline }}</div>
+                    <div class="stat-label">Offline Printers</div>
+                    <small>Requiring attention</small>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="stat-card pages">
+                    <i class="fas fa-file-alt fa-2x opacity-75"></i>
+                    <div class="stat-number">{{ "{:,}".format(total_pages) }}</div>
+                    <div class="stat-label">Total Pages</div>
+                    <small>Lifetime printing</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Charts Row -->
+        <div class="row g-4 mb-4">
+            <!-- Status Distribution -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-chart-pie me-2"></i>Printer Status Distribution</span>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="showPercentages" checked onchange="togglePercentages()">
+                            <label class="form-check-label text-white" for="showPercentages">Percentages</label>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Usage Trend -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-line me-2"></i>Monthly Usage Trend
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Second Charts Row -->
+        <div class="row g-4 mb-4">
+            <!-- Department Comparison -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-building me-2"></i>Department Performance Comparison</span>
+                        <select class="form-select form-select-sm w-auto" id="deptMetric" onchange="updateDeptChart()">
+                            <option value="pages">Pages</option>
+                            <option value="cost">Cost</option>
+                            <option value="efficiency">Efficiency</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="deptChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color vs Monochrome -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-palette me-2"></i>Color vs Monochrome Usage
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="colorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Usage & Detailed Metrics -->
+        <div class="row g-4">
+            <!-- Top Users -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-users me-2"></i>Top Users by Pages Printed
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Rank</th>
+                                        <th>User</th>
+                                        <th>Pages</th>
+                                        <th>Department</th>
+                                        <th>Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in top_users %}
+                                    <tr>
+                                        <td>
+                                            <div class="user-rank user-rank-{{ loop.index if loop.index <= 3 else '' }}">
+                                                {{ loop.index }}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>{{ user.name }}</strong>
+                                            {% if user.role == 'admin' %}
+                                            <span class="badge bg-danger metric-badge">Admin</span>
+                                            {% elif user.role == 'technician' %}
+                                            <span class="badge bg-warning metric-badge">Tech</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong>{{ "{:,}".format(user.pages) }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info metric-badge">{{ user.department }}</span>
+                                        </td>
+                                        <td>
+                                            {% if user.trend > 0 %}
+                                            <i class="fas fa-arrow-up trend-up trend-indicator"></i>
+                                            <small class="trend-up">{{ user.trend }}%</small>
+                                            {% elif user.trend < 0 %}
+                                            <i class="fas fa-arrow-down trend-down trend-indicator"></i>
+                                            <small class="trend-down">{{ user.trend|abs }}%</small>
+                                            {% else %}
+                                            <i class="fas fa-minus text-muted trend-indicator"></i>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-tachometer-alt me-2"></i>Performance Metrics
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center g-3">
+                            <div class="col-6">
+                                <div class="p-3 border rounded">
+                                    <div class="h4 text-primary mb-1">{{ "%.1f"|format(average_uptime) }}%</div>
+                                    <small class="text-muted">Average Uptime</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded">
+                                    <div class="h4 text-success mb-1">${{ "%.2f"|format(total_cost) }}</div>
+                                    <small class="text-muted">Total Printing Cost</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded">
+                                    <div class="h4 text-info mb-1">{{ "{:,}".format(total_jobs) }}</div>
+                                    <small class="text-muted">Total Print Jobs</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 border rounded">
+                                    <div class="h4 text-warning mb-1">{{ "%.2f"|format(cost_per_page) }}¢</div>
+                                    <small class="text-muted">Cost Per Page</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Efficiency Gauge -->
+                        <div class="mt-4">
+                            <h6 class="section-title">System Efficiency</h6>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar" 
+                                     style="width: {{ efficiency }}%;" 
+                                     aria-valuenow="{{ efficiency }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ "%.1f"|format(efficiency) }}% Efficient
+                                </div>
+                            </div>
+                            <small class="text-muted">Based on uptime, cost efficiency, and utilization</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize all charts
+        let charts = {};
+        
+        // Status Distribution Chart
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        charts.status = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Online', 'Offline', 'Maintenance'],
+                datasets: [{
+                    data: [{{ status_counts.online }}, {{ status_counts.offline }}, {{ printers_count - status_counts.online - status_counts.offline }}],
+                    backgroundColor: ['#27ae60', '#e74c3c', '#f39c12'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((context.raw / total) * 100);
+                                return `${context.label}: ${context.raw} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+
+        // Monthly Usage Chart
+        const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+        charts.monthly = new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [{
+                    label: 'Pages Printed',
+                    data: [12000, 19000, 15000, 25000, 22000, 30000, 28000, 32000, 29000, 35000, 33000, 40000],
+                    borderColor: '#3498db',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Department Comparison Chart
+        const deptCtx = document.getElementById('deptChart').getContext('2d');
+        charts.dept = new Chart(deptCtx, {
+            type: 'bar',
+            data: {
+                labels: ['IT', 'Marketing', 'Finance', 'HR', 'Admin'],
+                datasets: [{
+                    label: 'Pages Printed',
+                    data: [45000, 38000, 29000, 22000, 18000],
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.8)',
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(155, 89, 182, 0.8)',
+                        'rgba(241, 196, 15, 0.8)',
+                        'rgba(230, 126, 34, 0.8)'
+                    ],
+                    borderColor: [
+                        '#3498db',
+                        '#2ecc71',
+                        '#9b59b6',
+                        '#f1c40f',
+                        '#e67e22'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Color Usage Chart
+        const colorCtx = document.getElementById('colorChart').getContext('2d');
+        charts.color = new Chart(colorCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Color Pages', 'Monochrome Pages'],
+                datasets: [{
+                    data: [{{ color_usage.color }}, {{ color_usage.mono }}],
+                    backgroundColor: ['#ffc107', '#6c757d'],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+
+        // Utility functions
+        function refreshData() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        }
+
+        function updateCharts() {
+            console.log('Updating charts with new filters...');
+        }
+
+        function applyFilters() {
+            const timeRange = document.getElementById('timeRange').value;
+            const department = document.getElementById('departmentFilter').value;
+            const metric = document.getElementById('metricFilter').value;
+            
+            document.getElementById('lastUpdated').textContent = 'Updating...';
+            
+            setTimeout(() => {
+                document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+            }, 1500);
+        }
+
+        function exportCharts() {
+            alert('Export functionality would generate PDF/Excel reports');
+        }
+
+        function togglePercentages() {
+            const showPercentages = document.getElementById('showPercentages').checked;
+            alert('Percentage display toggled: ' + showPercentages);
+        }
+
+        function updateDeptChart() {
+            const metric = document.getElementById('deptMetric').value;
+            console.log('Updating department chart with metric: ' + metric);
+        }
+
+        // Auto-refresh data every 5 minutes
+        setInterval(() => {
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        }, 300000);
+    </script>
+</body>
+</html>

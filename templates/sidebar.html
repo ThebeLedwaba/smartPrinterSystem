@@ -1,0 +1,278 @@
+<!-- templates/sidebar.html -->
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header text-center mb-4">
+    <h2 class="fw-bold mb-2" style="letter-spacing: 1px;">
+        <i class="fas fa-print me-1"></i>PrintOps
+    </h2>
+    <small class="text-light opacity-75" style="letter-spacing: 0.5px;">
+        Enterprise Printer Management
+    </small>
+</div>
+
+
+    <!-- Dashboard & Monitoring -->
+    <div class="sidebar-section mb-3">
+        <small class="text-uppercase text-light opacity-50 fw-bold px-3 mb-2 d-block">Dashboard</small>
+        <a href="{{ url_for('index') }}" class="sidebar-link {% if request.endpoint == 'index' %}active{% endif %}">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            {% if unacknowledged_alerts_count and unacknowledged_alerts_count > 0 %}
+            <span class="badge bg-danger float-end">{{ unacknowledged_alerts_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('printer_list') }}" class="sidebar-link {% if request.endpoint == 'printer_list' %}active{% endif %}">
+            <i class="fas fa-print me-2"></i>Printers List
+        </a>
+        <a href="{{ url_for('chart') }}" class="sidebar-link {% if request.endpoint == 'chart' %}active{% endif %}">
+            <i class="fas fa-chart-pie me-2"></i>Status Chart
+        </a>
+        <a href="{{ url_for('analytics') }}" class="sidebar-link {% if request.endpoint == 'analytics' %}active{% endif %}">
+            <i class="fas fa-chart-line me-2"></i>Analytics
+        </a>
+    </div>
+
+    <!-- Alerts & Maintenance -->
+    <div class="sidebar-section mb-3">
+        <small class="text-uppercase text-light opacity-50 fw-bold px-3 mb-2 d-block">Operations</small>
+        <a href="{{ url_for('alerts') }}" class="sidebar-link {% if request.endpoint == 'alerts' %}active{% endif %}">
+            <i class="fas fa-bell me-2"></i>Alerts
+            {% if unacknowledged_alerts_count and unacknowledged_alerts_count > 0 %}
+            <span class="badge bg-warning float-end">{{ unacknowledged_alerts_count }}</span>
+            {% endif %}
+        </a>
+        <a href="{{ url_for('maintenance') }}" class="sidebar-link {% if request.endpoint == 'maintenance' %}active{% endif %}">
+            <i class="fas fa-tools me-2"></i>Maintenance
+        </a>
+        <a href="{{ url_for('print_queues') }}" class="sidebar-link {% if request.endpoint == 'print_queues' %}active{% endif %}">
+            <i class="fas fa-print me-2"></i>Print Queues
+        </a>
+        <a href="{{ url_for('troubleshooting_guide') }}" class="sidebar-link {% if request.endpoint == 'troubleshooting_guide' %}active{% endif %}">
+            <i class="fas fa-life-ring me-2"></i>Troubleshooting
+        </a>
+    </div>
+
+    <!-- Reports & Analytics -->
+    <div class="sidebar-section mb-3">
+        <small class="text-uppercase text-light opacity-50 fw-bold px-3 mb-2 d-block">Reports</small>
+        <a href="{{ url_for('reports') }}" class="sidebar-link {% if request.endpoint == 'reports' %}active{% endif %}">
+            <i class="fas fa-file-alt me-2"></i>Standard Reports
+        </a>
+        {% if current_user.role in ['admin', 'auditor'] %}
+        <a href="{{ url_for('executive_reports') }}" class="sidebar-link {% if request.endpoint == 'executive_reports' %}active{% endif %}">
+            <i class="fas fa-chart-bar me-2"></i>Executive Reports
+        </a>
+        {% endif %}
+        {% if current_user.role in ['admin', 'auditor'] %}
+        <a href="{{ url_for('executive_dashboard') }}" class="sidebar-link {% if request.endpoint == 'executive_dashboard' %}active{% endif %}">
+            <i class="fas fa-briefcase me-2"></i>Executive Dashboard
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Administration -->
+    <div class="sidebar-section mb-3">
+        <small class="text-uppercase text-light opacity-50 fw-bold px-3 mb-2 d-block">Administration</small>
+        <a href="{{ url_for('add_printer') }}" class="sidebar-link {% if request.endpoint == 'add_printer' %}active{% endif %}">
+            <i class="fas fa-plus-circle me-2"></i>Add Printer
+        </a>
+        {% if current_user.role in ['admin', 'technician'] %}
+        <a href="{{ url_for('printer_list') }}" class="sidebar-link {% if request.endpoint == 'printer_list' %}active{% endif %}">
+            <i class="fas fa-print me-2"></i>Manage Printers
+        </a>
+        {% endif %}
+        
+        {% if current_user.role == 'admin' %}
+        <a href="{{ url_for('user_management') }}" class="sidebar-link {% if request.endpoint == 'user_management' %}active{% endif %}">
+            <i class="fas fa-users me-2"></i>User Management
+        </a>
+        <a href="{{ url_for('audit_logs') }}" class="sidebar-link {% if request.endpoint == 'audit_logs' %}active{% endif %}">
+            <i class="fas fa-clipboard-list me-2"></i>Audit Logs
+        </a>
+        <a href="{{ url_for('settings') }}" class="sidebar-link {% if request.endpoint == 'settings' %}active{% endif %}">
+            <i class="fas fa-cog me-2"></i>System Settings
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- User Section -->
+    <div class="sidebar-section mt-auto">
+        <div class="user-info px-3 py-2 border-top border-light border-opacity-25">
+            <small class="text-light d-block">
+                <i class="fas fa-user me-1"></i>{{ current_user.username }}
+            </small>
+            <small class="text-light opacity-75 d-block">
+                <span class="badge bg-{{ 'success' if current_user.role == 'admin' else 'warning' if current_user.role == 'technician' else 'info' if current_user.role == 'auditor' else 'secondary' }}">
+                    {{ current_user.role }}
+                </span>
+            </small>
+        </div>
+        <a href="{{ url_for('logout') }}" class="sidebar-link logout-btn">
+            <i class="fas fa-sign-out-alt me-2"></i>Logout
+        </a>
+    </div>
+</div>
+
+<style>
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 250px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 20px;
+    z-index: 1000;
+    overflow-y: auto;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.sidebar-section {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+}
+
+.sidebar-header h2 {
+    font-size: 1.3rem;
+    background: linear-gradient(45deg, #fff, #e3f2fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+.sidebar-header p {
+    font-size: 0.85rem;
+    opacity: 0.8;
+    margin: 5px 0 0;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: #fff;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.sidebar-link:hover, 
+.sidebar-link.active {
+    background: rgba(255,255,255,0.2);
+    transform: translateX(5px);
+}
+
+.sidebar-link i {
+    width: 20px;
+    text-align: center;
+    margin-right: 10px;
+}
+
+.user-info {
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    margin: 10px 0;
+    padding: 10px 15px;
+}
+
+.logout-btn {
+    background: rgba(220, 53, 69, 0.2);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.logout-btn:hover {
+    background: rgba(220, 53, 69, 0.3);
+}
+
+.badge {
+    font-size: 0.7em;
+    padding: 4px 8px;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* Scrollbar styling for sidebar */
+.sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.5);
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .sidebar {
+        transform: translateX(-100%);
+        width: 250px;
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .sidebar.mobile-open::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 250px;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+    }
+}
+</style>
+
+<script>
+// Mobile sidebar toggle functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('mobile-open');
+        });
+    }
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(event) {
+        if (window.innerWidth <= 992 && 
+            sidebar.classList.contains('mobile-open') &&
+            !sidebar.contains(event.target) &&
+            !sidebarToggle.contains(event.target)) {
+            sidebar.classList.remove('mobile-open');
+        }
+    });
+    
+    // Close sidebar when route changes (on mobile)
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 992) {
+                sidebar.classList.remove('mobile-open');
+            }
+        });
+    });
+});
+</script>

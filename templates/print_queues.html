@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print Queues - {{ ENTERPRISE_NAME }} Printer Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
+        .sidebar { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 20px; }
+        .sidebar a { display: block; padding: 12px 15px; color: #fff; margin-bottom: 8px; border-radius: 8px; text-decoration: none; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.2); transform: translateX(5px); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.08); margin-bottom: 25px; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .queue-item { border-left: 4px solid #007bff; padding: 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 8px; }
+        .queue-item.queued { border-left-color: #ffc107; }
+        .queue-item.printing { border-left-color: #28a745; }
+        .queue-item.completed { border-left-color: #6c757d; }
+        .queue-item.cancelled { border-left-color: #dc3545; }
+        .job-progress { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+        .job-progress-bar { height: 100%; background: linear-gradient(45deg, #28a745, #20c997); transition: width 0.3s; }
+        .printer-status { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .printer-status.online { background: #28a745; }
+        .printer-status.offline { background: #dc3545; }
+        .printer-status.unknown { background: #6c757d; }
+        .job-priority-high { border-left: 4px solid #dc3545 !important; }
+        .job-priority-normal { border-left: 4px solid #ffc107 !important; }
+        .job-priority-low { border-left: 4px solid #28a745 !important; }
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .progress-bar-striped { background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent); }
+        .progress-bar-animated { animation: progress-bar-stripes 1s linear infinite; }
+        @keyframes progress-bar-stripes {
+            0% { background-position: 1rem 0; }
+            100% { background-position: 0 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                {% include 'sidebar.html' %}
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 ms-sm-auto px-4 py-4">
+                <!-- Header -->
+                <div class="d-flex justify-content-between flex-wrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+                    <div>
+                        <h1 class="h2 fw-bold text-dark">
+                            <i class="fas fa-print text-primary me-2"></i>Print Queues
+                        </h1>
+                        <p class="text-muted mb-0">Real-time print job management and monitoring</p>
+                    </div>
+                    <div class="btn-toolbar">
+                        <button class="btn btn-outline-secondary me-2" onclick="refreshQueues()">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh
+                        </button>
+                        <span class="badge bg-info fs-6">
+                            <i class="fas fa-clock me-1"></i>
+                            <span id="currentTime">{{ now.strftime('%H:%M:%S') if now else '' }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Print Queues Summary -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-center bg-primary text-white">
+                            <div class="card-body">
+                                <h3 class="mb-0" id="active-queues-count">{{ queues|length }}</h3>
+                                <p class="mb-0">Active Queues</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center bg-warning text-dark">
+                            <div class="card-body">
+                                <h3 class="mb-0" id="queued-jobs-count">{{ active_jobs|selectattr('status', 'equalto', 'queued')|list|length }}</h3>
+                                <p class="mb-0">Queued Jobs</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center bg-success text-white">
+                            <div class="card-body">
+                                <h3 class="mb-0" id="printing-jobs-count">{{ active_jobs|selectattr('status', 'equalto', 'printing')|list|length }}</h3>
+                                <p class="mb-0">Printing Now</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center bg-info text-white">
+                            <div class="card-body">
+                                <h3 class="mb-0" id="total-pages-count">{{ active_jobs|sum(attribute='pages') or 0 }}</h3>
+                                <p class="mb-0">Total Pages</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <input type="text" class="form-control" placeholder="Search jobs..." id="jobSearch" onkeyup="filterJobs()">
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="statusFilter" onchange="filterJobs()">
+                                    <option value="">All Status</option>
+                                    <option value="queued">Queued</option>
+                                    <option value="printing">Printing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="printerFilter" onchange="filterJobs()">
+                                    <option value="">All Printers</option>
+                                    {% for queue in queues %}
+                                    <option value="{{ queue.ip }}">{{ queue.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <select class="form-select" id="priorityFilter" onchange="filterJobs()">
+                                    <option value="">All Priorities</option>
+                                    <option value="high">High</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="low">Low</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                                    <i class="fas fa-times me-2"></i>Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bulk Operations -->
+                <div class="card mb-4" id="bulkOperations" style="display: none;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="selectAllJobs" onchange="toggleSelectAll()">
+                                <label class="form-check-label fw-bold" for="selectAllJobs">
+                                    <span id="selectedCount">0</span> jobs selected
+                                </label>
+                            </div>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-primary" onclick="pauseSelectedJobs()">
+                                    <i class="fas fa-pause me-2"></i>Pause Selected
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="cancelSelectedJobs()">
+                                    <i class="fas fa-times me-2"></i>Cancel Selected
+                                </button>
+                                <button class="btn btn-outline-success" onclick="prioritizeSelectedJobs()">
+                                    <i class="fas fa-arrow-up me-2"></i>Set High Priority
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Section -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-white border-0">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-bar me-2 text-primary"></i>Queue Distribution
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="queueChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header bg-white border-0">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-clock me-2 text-success"></i>Performance Metrics
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center">
+                                    <div class="col-4 mb-3">
+                                        <small class="text-muted d-block">Avg Wait Time</small>
+                                        <h4 class="text-primary" id="avg-wait-time">{% if queue_metrics %}{{ "%.1f"|format(queue_metrics.avg_wait_time or 0) }}{% else %}0{% endif %} min</h4>
+                                    </div>
+                                    <div class="col-4 mb-3">
+                                        <small class="text-muted d-block">Jobs/Hour</small>
+                                        <h4 class="text-success" id="jobs-per-hour">{% if queue_metrics %}{{ queue_metrics.jobs_per_hour or 0 }}{% else %}0{% endif %}</h4>
+                                    </div>
+                                    <div class="col-4 mb-3">
+                                        <small class="text-muted d-block">Success Rate</small>
+                                        <h4 class="text-info" id="success-rate">{% if queue_metrics %}{{ "%.1f"|format(queue_metrics.success_rate or 0) }}{% else %}0{% endif %}%</h4>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <small class="text-muted d-block mb-1">Peak Usage Time</small>
+                                    <h5 class="text-warning" id="peak-usage">{% if queue_metrics %}{{ queue_metrics.peak_usage or 'N/A' }}{% else %}N/A{% endif %}</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Print Queues -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                                <h4 class="card-title mb-0">
+                                    <i class="fas fa-list-alt me-2 text-primary"></i>Active Print Queues
+                                </h4>
+                                <span class="badge bg-primary pulse-animation">Live</span>
+                            </div>
+                            <div class="card-body">
+                                {% if queues %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Printer</th>
+                                                <th>Location</th>
+                                                <th class="text-center">Queued Jobs</th>
+                                                <th class="text-center">Total Pages</th>
+                                                <th class="text-end">Queue Cost</th>
+                                                <th class="text-center">Status</th>
+                                                <th class="text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for queue in queues %}
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="printer-status {{ monitor.get_printer_status(queue.ip) }}"></span>
+                                                        <strong>{{ queue.name }}</strong>
+                                                    </div>
+                                                    <small class="text-muted">{{ queue.ip }}</small>
+                                                </td>
+                                                <td>{{ queue.location or 'N/A' }}</td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-warning fs-6">{{ queue.queued_jobs or 0 }}</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-info fs-6">{{ queue.queued_pages or 0 }}</span>
+                                                </td>
+                                                <td class="text-end fw-bold text-success">
+                                                    {{ currency }} {{ "%.2f"|format(queue.queued_cost or 0) }}
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-{{ 'success' if monitor.get_printer_status(queue.ip) == 'online' else 'danger' }}">
+                                                        {{ monitor.get_printer_status(queue.ip).upper() }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-danger" 
+                                                                onclick="clearQueue('{{ queue.ip }}', '{{ queue.name }}')"
+                                                                title="Clear all queued jobs">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                        <button class="btn btn-outline-info" 
+                                                                onclick="viewQueueDetails('{{ queue.ip }}')"
+                                                                title="View queue details">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-print fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No active print queues</h5>
+                                    <p class="text-muted">All printers are currently idle.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Print Jobs -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                                <h4 class="card-title mb-0">
+                                    <i class="fas fa-tasks me-2 text-success"></i>Active Print Jobs
+                                </h4>
+                                <span class="badge bg-success" id="filtered-jobs-count">{{ active_jobs|length }}</span>
+                            </div>
+                            <div class="card-body">
+                                {% if active_jobs %}
+                                <div class="row" id="jobs-container">
+                                    {% for job in active_jobs %}
+                                    <div class="col-md-6 mb-3 job-item" 
+                                         data-status="{{ job.status }}" 
+                                         data-printer="{{ job.printer_ip }}" 
+                                         data-priority="{{ job.priority or 'normal' }}"
+                                         data-search="{{ (job.document_name or '') + ' ' + (job.username or '') + ' ' + (job.job_id or '') }}">
+                                        <div class="queue-item {{ job.status }} job-priority-{{ job.priority or 'normal' }}">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input job-checkbox" type="checkbox" value="{{ job.job_id }}" onchange="updateBulkOperations()">
+                                                <label class="form-check-label fw-bold">{{ job.document_name or 'Untitled Document' }}</label>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <small class="text-muted">Job ID: {{ job.job_id }}</small>
+                                                    <br>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-user me-1"></i>{{ job.username or 'Unknown' }}
+                                                    </small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-{{ 'warning' if job.status == 'queued' else 'success' if job.status == 'printing' else 'secondary' }} me-1">
+                                                        {{ job.status.upper() }}
+                                                    </span>
+                                                    {% if job.priority %}
+                                                    <span class="badge bg-{{ 'danger' if job.priority == 'high' else 'warning' if job.priority == 'normal' else 'success' }}">
+                                                        {{ job.priority.upper() }}
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-6">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-print me-1"></i>{{ job.printer_name or job.printer_ip }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-6 text-end">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-file me-1"></i>{{ job.pages or 0 }} pages
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="row mt-2">
+                                                <div class="col-6">
+                                                    <small class="text-muted">
+                                                        Submitted: {{ job.submitted_time.strftime('%H:%M') if job.submitted_time else 'N/A' }}
+                                                    </small>
+                                                </div>
+                                                <div class="col-6 text-end">
+                                                    <small class="fw-bold text-success">
+                                                        {{ currency }} {{ "%.2f"|format(job.cost or 0) }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            {% if job.status == 'printing' %}
+                                            <div class="progress mt-2" style="height: 6px;">
+                                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                                     role="progressbar" 
+                                                     style="width: {{ job.progress or 50 }}%"
+                                                     aria-valuenow="{{ job.progress or 50 }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100">
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            <div class="mt-3">
+                                                <div class="btn-group btn-group-sm w-100">
+                                                    {% if job.status == 'queued' %}
+                                                    <button class="btn btn-outline-success" onclick="startJob('{{ job.job_id }}')">
+                                                        <i class="fas fa-play me-1"></i>Start
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if job.status == 'printing' %}
+                                                    <button class="btn btn-outline-warning" onclick="pauseJob('{{ job.job_id }}')">
+                                                        <i class="fas fa-pause me-1"></i>Pause
+                                                    </button>
+                                                    {% endif %}
+                                                    <button class="btn btn-outline-danger" onclick="cancelJob('{{ job.job_id }}')">
+                                                        <i class="fas fa-times me-1"></i>Cancel
+                                                    </button>
+                                                    <button class="btn btn-outline-info" onclick="viewJobDetails('{{ job.job_id }}')">
+                                                        <i class="fas fa-info me-1"></i>Details
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                    <h5 class="text-success">All clear!</h5>
+                                    <p class="text-muted">No active print jobs in the system.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="row mt-5">
+                    <div class="col-12 text-center">
+                        <p class="text-muted">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            Auto-refresh: 30 seconds | 
+                            Last updated: <span id="lastUpdated">{{ now.strftime('%H:%M:%S') if now else '' }}</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Initialize charts
+        function initializeCharts() {
+            const queueCtx = document.getElementById('queueChart').getContext('2d');
+            const queueChart = new Chart(queueCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Queued', 'Printing', 'Completed', 'Cancelled'],
+                    datasets: [{
+                        data: [
+                            {{ active_jobs|selectattr('status', 'equalto', 'queued')|list|length }},
+                            {{ active_jobs|selectattr('status', 'equalto', 'printing')|list|length }},
+                            {{ active_jobs|selectattr('status', 'equalto', 'completed')|list|length }},
+                            {{ active_jobs|selectattr('status', 'equalto', 'cancelled')|list|length }}
+                        ],
+                        backgroundColor: ['#ffc107', '#28a745', '#6c757d', '#dc3545'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Filter and search functionality
+        function filterJobs() {
+            const searchTerm = document.getElementById('jobSearch').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const printerFilter = document.getElementById('printerFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+            
+            const jobItems = document.querySelectorAll('.job-item');
+            let visibleCount = 0;
+            
+            jobItems.forEach(item => {
+                const matchesSearch = item.dataset.search.toLowerCase().includes(searchTerm);
+                const matchesStatus = !statusFilter || item.dataset.status === statusFilter;
+                const matchesPrinter = !printerFilter || item.dataset.printer === printerFilter;
+                const matchesPriority = !priorityFilter || item.dataset.priority === priorityFilter;
+                
+                if (matchesSearch && matchesStatus && matchesPrinter && matchesPriority) {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('filtered-jobs-count').textContent = visibleCount;
+            updateBulkOperations();
+        }
+
+        function clearFilters() {
+            document.getElementById('jobSearch').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('printerFilter').value = '';
+            document.getElementById('priorityFilter').value = '';
+            filterJobs();
+        }
+
+        // Bulk operations
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAllJobs').checked;
+            const checkboxes = document.querySelectorAll('.job-checkbox:not(:disabled)');
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.closest('.job-item').style.display !== 'none') {
+                    checkbox.checked = selectAll;
+                }
+            });
+            
+            updateBulkOperations();
+        }
+
+        function updateBulkOperations() {
+            const selectedCount = document.querySelectorAll('.job-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = selectedCount;
+            
+            const bulkOps = document.getElementById('bulkOperations');
+            bulkOps.style.display = selectedCount > 0 ? 'block' : 'none';
+        }
+
+        // Job management functions
+        async function performJobAction(jobIds, action) {
+            try {
+                const response = await fetch('/api/print_jobs/bulk_action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        job_ids: jobIds,
+                        action: action
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showNotification(`${action} action completed for ${jobIds.length} jobs`, 'success');
+                    refreshQueues();
+                } else {
+                    throw new Error(data.message || 'Action failed');
+                }
+            } catch (error) {
+                showNotification(`Error performing ${action}: ${error.message}`, 'error');
+            }
+        }
+
+        function getSelectedJobIds() {
+            const checkboxes = document.querySelectorAll('.job-checkbox:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function pauseSelectedJobs() {
+            const jobIds = getSelectedJobIds();
+            if (jobIds.length > 0) {
+                performJobAction(jobIds, 'pause');
+            }
+        }
+
+        function cancelSelectedJobs() {
+            const jobIds = getSelectedJobIds();
+            if (jobIds.length > 0 && confirm(`Cancel ${jobIds.length} selected jobs?`)) {
+                performJobAction(jobIds, 'cancel');
+            }
+        }
+
+        function prioritizeSelectedJobs() {
+            const jobIds = getSelectedJobIds();
+            if (jobIds.length > 0) {
+                performJobAction(jobIds, 'prioritize');
+            }
+        }
+
+        // Individual job actions
+        function startJob(jobId) {
+            performJobAction([jobId], 'start');
+        }
+
+        function pauseJob(jobId) {
+            performJobAction([jobId], 'pause');
+        }
+
+        function cancelJob(jobId) {
+            if (confirm('Are you sure you want to cancel this print job?')) {
+                performJobAction([jobId], 'cancel');
+            }
+        }
+
+        function viewJobDetails(jobId) {
+            window.location.href = `/print_job/${jobId}`;
+        }
+
+        function viewQueueDetails(printerIp) {
+            window.location.href = `/print_queue/${printerIp}`;
+        }
+
+        function clearQueue(printerIp, printerName) {
+            if (confirm(`Are you sure you want to clear all queued jobs for "${printerName}"?`)) {
+                performJobAction([], 'clear_queue', printerIp);
+            }
+        }
+
+        // Real-time updates
+        async function refreshQueues() {
+            try {
+                const response = await fetch('/api/print_queues/status');
+                const data = await response.json();
+                
+                // Update summary counts
+                document.getElementById('active-queues-count').textContent = data.queues_count || 0;
+                document.getElementById('queued-jobs-count').textContent = data.queued_jobs || 0;
+                document.getElementById('printing-jobs-count').textContent = data.printing_jobs || 0;
+                document.getElementById('total-pages-count').textContent = data.total_pages || 0;
+                
+                // Update metrics
+                if (data.metrics) {
+                    document.getElementById('avg-wait-time').textContent = data.metrics.avg_wait_time + ' min';
+                    document.getElementById('jobs-per-hour').textContent = data.metrics.jobs_per_hour;
+                    document.getElementById('success-rate').textContent = data.metrics.success_rate + '%';
+                    document.getElementById('peak-usage').textContent = data.metrics.peak_usage;
+                }
+                
+                showNotification('Queues updated successfully', 'success');
+            } catch (error) {
+                console.error('Error refreshing queues:', error);
+                showNotification('Error updating queues', 'error');
+            }
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            // Remove existing notifications
+            document.querySelectorAll('.alert-dismissible').forEach(alert => {
+                if (alert.parentNode) alert.remove();
+            });
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alert.style.cssText = 'top: 20px; right: 20px; z-index: 1050; min-width: 300px;';
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                if (alert.parentNode) alert.remove();
+            }, 5000);
+        }
+
+        // Time and auto-refresh
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('lastUpdated').textContent = 
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            setInterval(updateTime, 1000);
+            setInterval(refreshQueues, 30000); // Auto-refresh every 30 seconds
+        });
+    </script>
+</body>
+</html>

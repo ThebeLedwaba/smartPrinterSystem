@@ -1,6 +1,7 @@
 import unittest
 from monitor import validate_printer, load_json_file
 
+
 class TestMonitor(unittest.TestCase):
     def test_validate_printer(self):
         self.assertTrue(validate_printer({"name": "Printer1", "ip": "192.168.0.101"}))

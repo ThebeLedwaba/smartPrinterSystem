@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Fix - {{ printer.name }} - Smart Printer System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        @media (max-width: 992px) {
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        
+        .action-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+        
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .action-card .card-body {
+            padding: 2rem;
+        }
+        
+        .action-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .status-badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        
+        .btn-action {
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .printer-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-radius: 0;
+        }
+        
+        .danger-card {
+            border: 2px solid #dc3545;
+        }
+        
+        .danger-card .action-icon {
+            color: #dc3545;
+        }
+        
+        .protocol-badge {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.6rem;
+            margin-left: 0.5rem;
+        }
+        
+        .action-description {
+            font-size: 0.85rem;
+            min-height: 60px;
+        }
+        
+        .real-time-status {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    {% include 'sidebar.html' %}
+
+    <div class="main-content">
+        <!-- Printer Header -->
+        <div class="printer-header">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-2">
+                                <li class="breadcrumb-item"><a href="{{ url_for('index') }}" class="text-light">Dashboard</a></li>
+                                <li class="breadcrumb-item"><a href="{{ url_for('printer_details', printer_id=printer.id) }}" class="text-light">{{ printer.name }}</a></li>
+                                <li class="breadcrumb-item active text-light">Remote Fix</li>
+                            </ol>
+                        </nav>
+                        <h1 class="h2 mb-1">
+                            <i class="fas fa-tools me-2"></i>Remote Troubleshooting
+                        </h1>
+                        <p class="mb-0 opacity-85">Real SNMP/HTTP remote control for {{ printer.name }}</p>
+                    </div>
+                    <div class="col-auto">
+                        <span class="status-badge badge bg-{{ 'success' if status == 'online' else 'warning' if status == 'offline' else 'danger' }} fs-6">
+                            <i class="fas fa-circle me-1" style="font-size: 0.6rem;"></i>
+                            {{ status|upper }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'warning' else 'info-circle' if category == 'info' else 'exclamation-circle' }} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Real-Time Status Card -->
+            <div class="real-time-status">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h4 class="mb-2">
+                            <i class="fas fa-print me-2"></i>{{ printer.name }}
+                        </h4>
+                        <div class="row">
+                            <div class="col-auto">
+                                <strong>IP:</strong> <code class="text-light">{{ printer.ip }}</code>
+                            </div>
+                            <div class="col-auto">
+                                <strong>Location:</strong> {{ printer.location or 'Not specified' }}
+                            </div>
+                            <div class="col-auto">
+                                <strong>Model:</strong> {{ printer.model or 'Unknown' }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="d-inline-block text-center">
+                            <div class="fs-1 fw-bold">{{ status|title }}</div>
+                            <small>Live Status</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remote Actions Grid -->
+            <div class="row g-4">
+                <!-- Restart Printer -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-warning">
+                                <i class="fas fa-power-off"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Restart Printer
+                                <span class="protocol-badge badge bg-warning text-dark">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Send SNMP restart command to reboot the printer. Useful for clearing temporary issues and memory leaks.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="restart">
+                                <button type="submit" class="btn btn-warning btn-action" 
+                                        onclick="return confirm('Are you sure you want to restart {{ printer.name }}? This will interrupt any active print jobs.')">
+                                    <i class="fas fa-play me-1"></i>Restart Now
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clear Errors -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Clear Errors
+                                <span class="protocol-badge badge bg-danger">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Reset error states and clear paper jams via SNMP. Resolves most common printer error conditions automatically.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="clear_errors">
+                                <button type="submit" class="btn btn-danger btn-action">
+                                    <i class="fas fa-broom me-1"></i>Clear Errors
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ping Check -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-info">
+                                <i class="fas fa-satellite-dish"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Ping / Status Check
+                                <span class="protocol-badge badge bg-info">ICMP/SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Perform comprehensive connectivity test with ping and SNMP verification. Checks network and protocol accessibility.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="ping">
+                                <button type="submit" class="btn btn-info btn-action">
+                                    <i class="fas fa-network-wired me-1"></i>Check Status
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Print Test Page -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-primary">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Print Test Page
+                                <span class="protocol-badge badge bg-primary">SNMP/HTTP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Print a diagnostic test page to verify printer functionality, print quality, and hardware status.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="test_page">
+                                <button type="submit" class="btn btn-primary btn-action">
+                                    <i class="fas fa-print me-1"></i>Print Test Page
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset Counter -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-success">
+                                <i class="fas fa-redo"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Reset Counter
+                                <span class="protocol-badge badge bg-success">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Reset maintenance and page counters after service. Clears usage statistics and maintenance reminders.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="reset_counter">
+                                <button type="submit" class="btn btn-success btn-action">
+                                    <i class="fas fa-sync me-1"></i>Reset Counter
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Firmware Check -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-dark">
+                                <i class="fas fa-microchip"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Firmware Check
+                                <span class="protocol-badge badge bg-dark">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Check current firmware version and detect if updates are available. Ensures security and feature compliance.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="update_firmware">
+                                <button type="submit" class="btn btn-dark btn-action">
+                                    <i class="fas fa-download me-1"></i>Check Firmware
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Warm Reset -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-info">
+                                <i class="fas fa-sync"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Warm Reset
+                                <span class="protocol-badge badge bg-info">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Reset printer memory and clear buffers while preserving network settings. Non-destructive reset.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="warm_reset">
+                                <button type="submit" class="btn btn-info btn-action">
+                                    <i class="fas fa-redo me-1"></i>Warm Reset
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cold Reset (Danger Zone) -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card danger-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <h5 class="card-title text-danger">
+                                Cold Reset
+                                <span class="protocol-badge badge bg-danger">SNMP</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                <strong class="text-danger">DANGEROUS:</strong> Restores factory defaults. Erases ALL settings including network configuration.
+                            </p>
+                            <form method="POST" action="{{ url_for('remote_fix_printer', printer_id=printer.id) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="cold_reset">
+                                <button type="submit" class="btn btn-danger btn-action" 
+                                        onclick="return confirm('🚨 CRITICAL WARNING: This will RESTORE FACTORY DEFAULTS and ERASE ALL settings including network configuration! This action cannot be undone. Type OK to confirm:') === true && prompt('Type \"CONFIRM COLD RESET\" to proceed:') === 'CONFIRM COLD RESET'">
+                                    <i class="fas fa-bomb me-1"></i>Cold Reset
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Full Diagnostics -->
+                <div class="col-lg-4 col-md-6">
+                    <div class="card action-card">
+                        <div class="card-body text-center">
+                            <div class="action-icon text-secondary">
+                                <i class="fas fa-stethoscope"></i>
+                            </div>
+                            <h5 class="card-title">
+                                Full Diagnostics
+                                <span class="protocol-badge badge bg-secondary">Multi</span>
+                            </h5>
+                            <p class="card-text text-muted action-description">
+                                Run comprehensive diagnostic tests including connectivity, protocols, and hardware status checks.
+                            </p>
+                            <a href="{{ url_for('printer_diagnostics', printer_id=printer.id) }}" class="btn btn-secondary btn-action">
+                                <i class="fas fa-chart-bar me-1"></i>Run Diagnostics
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Protocol Information -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Protocol Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Supported Protocols</h6>
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <span class="badge bg-warning text-dark">SNMP</span>
+                                        <span class="badge bg-primary">HTTP</span>
+                                        <span class="badge bg-success">HTTPS</span>
+                                        <span class="badge bg-info">ICMP</span>
+                                    </div>
+                                    <p class="text-muted small">
+                                        Most enterprise printers support SNMP for remote management. HTTP/HTTPS interfaces provide web-based configuration.
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Prerequisites</h6>
+                                    <ul class="small text-muted">
+                                        <li>SNMP enabled on printer</li>
+                                        <li>Network connectivity</li>
+                                        <li>Community string: <code>public</code></li>
+                                        <li>Port 161 accessible</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action History -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-history me-2"></i>Recent Remote Actions
+                            </h5>
+                            <a href="{{ url_for('audit_logs') }}" class="btn btn-sm btn-outline-primary">
+                                View Full Audit Log
+                            </a>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-0">
+                                All remote actions are logged in the audit trail for compliance and troubleshooting purposes.
+                                Check the Audit Logs section for complete history.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Add loading states to buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const button = this.querySelector('button[type="submit"]');
+                    if (button) {
+                        const originalText = button.innerHTML;
+                        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+                        button.disabled = true;
+                        
+                        // Re-enable button after 10 seconds in case of failure
+                        setTimeout(() => {
+                            button.innerHTML = originalText;
+                            button.disabled = false;
+                        }, 10000);
+                    }
+                });
+            });
+            
+            // Add real-time status updates
+            function updateStatus() {
+                // This would typically make an API call to get fresh status
+                console.log('Status update check...');
+            }
+            
+            // Update status every 30 seconds
+            setInterval(updateStatus, 30000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings - {{ ENTERPRISE_NAME }} Printer Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
+        .sidebar { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; padding: 20px; }
+        .sidebar a { display: block; padding: 12px 15px; color: #fff; margin-bottom: 8px; border-radius: 8px; text-decoration: none; transition: all 0.3s; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.2); transform: translateX(5px); }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.08); margin-bottom: 25px; transition: transform 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .settings-section { border-left: 4px solid #007bff; padding-left: 20px; margin-bottom: 30px; }
+        .settings-section.security { border-left-color: #dc3545; }
+        .settings-section.notifications { border-left-color: #28a745; }
+        .settings-section.system { border-left-color: #6c757d; }
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .toggle-slider { background-color: #28a745; }
+        input:checked + .toggle-slider:before { transform: translateX(26px); }
+        .backup-status { padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+        .backup-status.success { background: #d4edda; color: #155724; }
+        .backup-status.warning { background: #fff3cd; color: #856404; }
+        .backup-status.danger { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 sidebar">
+                {% include 'sidebar.html' %}
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10 ms-sm-auto px-4 py-4">
+                <!-- Header -->
+                <div class="d-flex justify-content-between flex-wrap align-items-center pt-3 pb-4 mb-4 border-bottom">
+                    <div>
+                        <h1 class="h2 fw-bold text-dark">
+                            <i class="fas fa-cog text-primary me-2"></i>System Settings
+                        </h1>
+                        <p class="text-muted mb-0">Configure system preferences and security settings</p>
+                    </div>
+                    <div class="btn-toolbar">
+                        <button class="btn btn-success me-2" onclick="saveSettings()">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="resetSettings()">
+                            <i class="fas fa-undo me-2"></i>Reset to Defaults
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Flash Messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- System Configuration -->
+                <div class="row">
+                    <div class="col-lg-8">
+                        <!-- General Settings -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h4 class="card-title mb-0">
+                                    <i class="fas fa-sliders-h me-2 text-primary"></i>General Settings
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="settings-section">
+                                    <h5>System Configuration</h5>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Enterprise Name</label>
+                                            <input type="text" class="form-control" value="{{ ENTERPRISE_NAME }}" id="enterpriseName">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Currency Symbol</label>
+                                            <input type="text" class="form-control" value="{{ CURRENCY }}" id="currencySymbol" maxlength="3">
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Cost per Page (B&W)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">{{ CURRENCY }}</span>
+                                                <input type="number" class="form-control" value="0.45" step="0.01" id="costPerPage">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Cost per Page (Color)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">{{ CURRENCY }}</span>
+                                                <input type="number" class="form-control" value="1.20" step="0.01" id="colorCostPerPage">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Monitoring Settings -->
+                                <div class="settings-section">
+                                    <h5>Monitoring Settings</h5>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Check Interval (minutes)</label>
+                                            <input type="number" class="form-control" value="5" min="1" max="60" id="checkInterval">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Alert Threshold (%)</label>
+                                            <input type="number" class="form-control" value="80" min="1" max="100" id="alertThreshold">
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="autoMonitoring" checked>
+                                        <label class="form-check-label" for="autoMonitoring">Enable Automatic Monitoring</label>
+                                    </div>
+                                </div>
+
+                                <!-- Notification Settings -->
+                                <div class="settings-section notifications">
+                                    <h5>Notification Settings</h5>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailAlerts" checked>
+                                        <label class="form-check-label" for="emailAlerts">Enable Email Alerts</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="pushNotifications">
+                                        <label class="form-check-label" for="pushNotifications">Enable Push Notifications</label>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Alert Email Recipients</label>
+                                        <textarea class="form-control" rows="3" id="alertRecipients" placeholder="Enter email addresses separated by commas">admin@company.com,it-support@company.com</textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Security Settings -->
+                                <div class="settings-section security">
+                                    <h5>Security Settings</h5>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="require2FA">
+                                        <label class="form-check-label" for="require2FA">Require Two-Factor Authentication</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="sessionTimeout" checked>
+                                        <label class="form-check-label" for="sessionTimeout">Enable Session Timeout (30 minutes)</label>
+                                    </div>
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="auditLogging" checked>
+                                        <label class="form-check-label" for="auditLogging">Enable Audit Logging</label>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Password Policy</label>
+                                            <select class="form-select" id="passwordPolicy">
+                                                <option value="basic">Basic (6 characters)</option>
+                                                <option value="standard" selected>Standard (8 characters, mixed case)</option>
+                                                <option value="strict">Strict (12 characters, special characters)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Failed Login Attempts</label>
+                                            <input type="number" class="form-control" value="5" min="1" max="10" id="maxLoginAttempts">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- System Status & Actions -->
+                    <div class="col-lg-4">
+                        <!-- System Status -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-heartbeat me-2 text-success"></i>System Status
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>Database Status</span>
+                                    <span class="badge bg-success">Healthy</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>Monitoring Service</span>
+                                    <span class="badge bg-success">Running</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span>Email Service</span>
+                                    <span class="badge bg-warning">Limited</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>Backup Service</span>
+                                    <span class="badge bg-success">Active</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Backup & Restore -->
+                        <div class="card mb-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-database me-2 text-info"></i>Backup & Restore
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="backup-status success mb-3">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Last backup: Today, 02:00 AM
+                                </div>
+                                <div class="backup-status warning mb-3">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Next backup: Today, 14:00 PM
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary" onclick="createBackup()">
+                                        <i class="fas fa-save me-2"></i>Create Backup Now
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="restoreBackup()">
+                                        <i class="fas fa-undo me-2"></i>Restore from Backup
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- System Actions -->
+                        <div class="card">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-tools me-2 text-warning"></i>System Actions
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-info" onclick="clearCache()">
+                                        <i class="fas fa-broom me-2"></i>Clear System Cache
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="rebootServices()">
+                                        <i class="fas fa-redo me-2"></i>Restart Services
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="systemDiagnostics()">
+                                        <i class="fas fa-stethoscope me-2"></i>Run Diagnostics
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-white">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-bar me-2 text-primary"></i>Quick Stats
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <small class="text-muted d-block mb-2">
+                                    <i class="fas fa-print me-2"></i>Total Printers: 24
+                                </small>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="fas fa-bell me-2"></i>Active Alerts: 3
+                                </small>
+                                <small class="text-muted d-block mb-2">
+                                    <i class="fas fa-users me-2"></i>System Users: 8
+                                </small>
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-hdd me-2"></i>Database Size: 45.2 MB
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card border-danger">
+                            <div class="card-header bg-danger text-white">
+                                <h4 class="card-title mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>Danger Zone
+                                </h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Reset All Settings</h6>
+                                        <p class="text-muted">Restore all settings to factory defaults</p>
+                                        <button class="btn btn-outline-danger" onclick="factoryReset()">
+                                            <i class="fas fa-industry me-2"></i>Factory Reset
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Purge All Data</h6>
+                                        <p class="text-muted">Permanently delete all system data</p>
+                                        <button class="btn btn-danger" onclick="purgeAllData()">
+                                            <i class="fas fa-trash me-2"></i>Purge All Data
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function saveSettings() {
+    // Create a form and submit it to the server
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = "{{ url_for('save_settings') }}";
+    
+    // Add CSRF token
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = '_csrf_token';
+    csrfToken.value = '{{ csrf_token() }}';
+    form.appendChild(csrfToken);
+    
+    // Add settings data
+    const settings = {
+        'enterprise_name': document.getElementById('enterpriseName').value,
+        'currency': document.getElementById('currencySymbol').value,
+        'cost_per_page': document.getElementById('costPerPage').value,
+        'color_cost_per_page': document.getElementById('colorCostPerPage').value,
+        'check_interval': document.getElementById('checkInterval').value,
+        'alert_threshold': document.getElementById('alertThreshold').value,
+        'email_alerts': document.getElementById('emailAlerts').checked ? '1' : '0',
+        'require_2fa': document.getElementById('require2FA').checked ? '1' : '0',
+        'push_notifications': document.getElementById('pushNotifications').checked ? '1' : '0',
+        'alert_recipients': document.getElementById('alertRecipients').value,
+        'session_timeout': document.getElementById('sessionTimeout').checked ? '1' : '0',
+        'audit_logging': document.getElementById('auditLogging').checked ? '1' : '0',
+        'password_policy': document.getElementById('passwordPolicy').value,
+        'max_login_attempts': document.getElementById('maxLoginAttempts').value,
+        'auto_monitoring': document.getElementById('autoMonitoring').checked ? '1' : '0'
+    };
+    
+    for (const [key, value] of Object.entries(settings)) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+        function resetSettings() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                document.getElementById('enterpriseName').value = '{{ ENTERPRISE_NAME }}';
+                document.getElementById('currencySymbol').value = '{{ CURRENCY }}';
+                document.getElementById('costPerPage').value = '0.45';
+                document.getElementById('colorCostPerPage').value = '1.20';
+                document.getElementById('checkInterval').value = '5';
+                document.getElementById('alertThreshold').value = '80';
+                document.getElementById('emailAlerts').checked = true;
+                document.getElementById('require2FA').checked = false;
+                
+                alert('Settings reset to defaults!');
+            }
+        }
+
+        function createBackup() {
+            alert('Backup creation started... This may take a few minutes.');
+            // Simulate backup process
+            setTimeout(() => {
+                alert('Backup completed successfully!');
+            }, 2000);
+        }
+
+        function restoreBackup() {
+            if (confirm('Are you sure you want to restore from backup? This will overwrite current data.')) {
+                alert('Restore process started...');
+            }
+        }
+
+        function clearCache() {
+            alert('System cache cleared successfully!');
+        }
+
+        function rebootServices() {
+            if (confirm('Restart all system services? This may cause brief downtime.')) {
+                alert('Services restarting...');
+            }
+        }
+
+        function systemDiagnostics() {
+            alert('Running system diagnostics... Check the logs for results.');
+        }
+
+        function factoryReset() {
+            if (confirm('WARNING: This will reset ALL settings to factory defaults. Are you absolutely sure?')) {
+                if (confirm('This action cannot be undone. Type "RESET" to confirm:')) {
+                    alert('Factory reset initiated... System will restart.');
+                }
+            }
+        }
+
+        function purgeAllData() {
+            if (confirm('DANGER: This will PERMANENTLY DELETE ALL DATA. This action cannot be undone!')) {
+                const confirmation = prompt('Type "DELETE ALL" to confirm:');
+                if (confirmation === 'DELETE ALL') {
+                    alert('All data purged. System shutting down...');
+                }
+            }
+        }
+
+        // Auto-save every 30 seconds (optional)
+        setInterval(saveSettings, 30000);
+    </script>
+</body>
+</html>
