@@ -1,120 +1,195 @@
-# Smart Printer System (Enterprise Edition)
+# Smart Printer System 🖨️ (Enterprise Edition)
 
-A comprehensive enterprise-grade solution for monitoring, managing, and analyzing network printers. This system provides real-time status updates, advanced reporting, predictive analytics, and secure role-based access control.
+A **production-ready, enterprise-grade printer monitoring and analytics platform** designed for IT departments and managed service providers. The system delivers real-time visibility, predictive maintenance insights, automated alerts, and secure role-based access across large printer fleets.
+
+---
 
 ## 🚀 Key Features
 
-*   **Real-Time Monitoring**: Live tracking of printer status (Online/Offline) and supply levels (Toner/Paper) via SNMP.
-*   **Executive Dashboard**: High-level overview of infrastructure health, cost analytics, and ROI potential.
-*   **Predictive Analytics**: Machine learning-inspired insights to predict maintenance needs and low supply warnings.
-*   **Comprehensive Reporting**: Generate detailed PDF and CSV reports for management and technical teams.
-*   **Role-Based Access Control (RBAC)**: secure access for Admins, Technicians, and Auditors.
-*   **Automated Alerts**: Email notifications for critical errors, low supplies, and maintenance reminders.
-*   **Audit Logging**: Full traceability of user actions for compliance and security.
-*   **Database**: Robust PostgreSQL backend for scalability and data integrity.
+### 🖥 Real-Time Monitoring
+
+* Live printer status tracking (**Online / Offline**)
+* Supply level monitoring (**Toner / Paper**) via **SNMP**
+* Network reachability checks using **ICMP Ping**
+
+### 📊 Analytics & Reporting
+
+* **Executive Dashboard** – Infrastructure health, usage trends, and cost insights
+* **Predictive Analytics** – Proactive maintenance and low-supply warnings
+* **Automated Reports** – Generate **PDF** and **CSV** reports for technical and management teams
+
+### 🔐 Security & Governance
+
+* **Role-Based Access Control (RBAC)** – Admin, Technician, and Auditor roles
+* **Audit Logging** – Full traceability of system access and actions
+* **Rate Limiting & CSRF Protection** – Hardened against common attack vectors
+
+### 🔔 Automation
+
+* **Email Alerts** – Critical faults, low supplies, and maintenance reminders
+* **Background Scheduling** – Continuous monitoring using APScheduler
+
+---
 
 ## 🛠️ Technology Stack
 
-*   **Backend**: Python, Flask
-*   **Database**: PostgreSQL
-*   **Monitoring**: SNMP (pysnmp), ICMP Ping
-*   **Scheduling**: APScheduler
-*   **Reporting**: ReportLab (PDF)
-*   **Frontend**: HTML5, CSS3, Jinja2 Templates, JavaScript
+### Backend
+
+* **Python 3.8+**
+* **Flask** – Lightweight, scalable web framework
+* **PostgreSQL** – Reliable, ACID-compliant relational database
+
+### Monitoring & Automation
+
+* **SNMP** (pysnmp) – Printer telemetry
+* **ICMP Ping** – Network availability checks
+* **APScheduler** – Scheduled monitoring jobs
+
+### Reporting & UI
+
+* **ReportLab** – Enterprise PDF reporting
+* **HTML5 / CSS3 / JavaScript**
+* **Jinja2 Templates** – Server-side rendered UI
+
+---
 
 ## 📋 Prerequisites
 
-*   Python 3.8 or higher
-*   PostgreSQL Database
-*   Network access to printers (for SNMP/Ping)
+* Python **3.8+**
+* PostgreSQL database
+* Network access to printers (SNMP & ICMP enabled)
+
+---
 
 ## ⚙️ Installation
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/ThebeLedwaba/smartPrinterSystem.git
-    cd smartPrinterSystem
-    ```
+### 1️⃣ Clone the Repository
 
-2.  **Create a Virtual Environment**
-    ```bash
-    python -m venv .venv
-    # Windows
-    .venv\Scripts\activate
-    # Linux/Mac
-    source .venv/bin/activate
-    ```
+```bash
+git clone https://github.com/ThebeLedwaba/smartPrinterSystem.git
+cd smartPrinterSystem
+```
 
-3.  **Install Dependencies**
-    ```bash
-    pip install -r requirements.txt
-    ```
+### 2️⃣ Create & Activate Virtual Environment
 
-4.  **Configure Environment Variables**
-    Create a `.env.production` file in the root directory (or rename `.env` to `.env.production`).
-    
-    ```ini
-    # Database Configuration
-    DATABASE_URL=postgresql://user:password@localhost:5432/printers
-    
-    # Enterprice Config
-    ENTERPRISE_NAME="Acme Corp"
-    CURRENCY="R"
-    
-    # Security
-    FLASK_SECRET=your_super_secret_key_here
-    ADMIN_PASSWORD=admin123
-    TECH_PASSWORD=tech123
-    AUDITOR_PASSWORD=auditor123
-    
-    # Email Settings (for Alerts)
-    SMTP_SERVER=smtp.gmail.com
-    SMTP_PORT=587
-    EMAIL_SENDER=notifications@example.com
-    EMAIL_PASSWORD=your_app_password
-    
-    # SNMP
-    SNMP_COMMUNITY=public
-    ```
-    > **Note:** Ensure you create a PostgreSQL database named `printers` (or match your DATABASE_URL).
+```bash
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# Linux / macOS
+source .venv/bin/activate
+```
 
-## 🏃‍♂️ Usage
+### 3️⃣ Install Dependencies
 
-### Starting the Application
-The `dashboard.py` script serves as the main entry point. It initializes the database schema, starts the background monitor, and launches the web server.
+```bash
+pip install -r requirements.txt
+```
+
+### 4️⃣ Environment Configuration
+
+Create a `.env.production` file in the project root.
+
+```ini
+# Database
+DATABASE_URL=postgresql://user:password@localhost:5432/printers
+
+# Enterprise Settings
+ENTERPRISE_NAME="Acme Corp"
+CURRENCY="R"
+
+# Security
+FLASK_SECRET=your_super_secret_key_here
+ADMIN_PASSWORD=admin123
+TECH_PASSWORD=tech123
+AUDITOR_PASSWORD=auditor123
+
+# Email Alerts
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+EMAIL_SENDER=notifications@example.com
+EMAIL_PASSWORD=your_app_password
+
+# SNMP
+SNMP_COMMUNITY=public
+```
+
+> ⚠️ **Security Note:** Change all default passwords before deploying to production.
+
+Ensure the PostgreSQL database exists:
+
+```sql
+CREATE DATABASE printers;
+```
+
+---
+
+## 🏃‍♂️ Running the Application
+
+The `dashboard.py` script initializes the database schema, starts background monitoring jobs, and launches the web server.
 
 ```bash
 python dashboard.py
 ```
 
-*   **Access the Dashboard**: Open [http://localhost:5000](http://localhost:5000) in your browser.
-*   **Default Logins**:
-    *   **Admin**: `admin` / (password from .env or `admin123`)
-    *   **Technician**: `technician` / (password from .env or `tech123`)
-    *   **Auditor**: `auditor` / (password from .env or `auditor123`)
+### Access
 
-### Database Administration
-The system automatically creates necessary tables on first run. 
-*   `monitor.py` can be run independently for a dedicated monitoring node, provided it shares the same `DATABASE_URL`.
+* **Dashboard:** [http://localhost:5000](http://localhost:5000)
 
-## 🛡️ Security
+### Default Roles
 
-*   **CSRF Protection**: Enabled on all forms.
-*   **Password Hashing**: Uses Werkzeug security hashing.
-*   **Sanitization**: Input validation to prevent injection attacks.
-*   **Rate Limiting**: Protects against brute-force attacks.
+| Role       | Username   |
+| ---------- | ---------- |
+| Admin      | admin      |
+| Technician | technician |
+| Auditor    | auditor    |
+
+Passwords are loaded from the `.env.production` file.
+
+---
+
+## 🗄 Database Management
+
+* Tables are **auto-created on first run**
+* `monitor.py` can be deployed independently as a **dedicated monitoring node**, sharing the same `DATABASE_URL`
+
+---
+
+## 🛡️ Security Features
+
+* CSRF protection on all forms
+* Secure password hashing (Werkzeug)
+* Input validation & sanitization
+* Rate limiting to mitigate brute-force attacks
+
+---
 
 ## 📁 Project Structure
 
-*   `dashboard.py`: Main Flask application and business logic.
-*   `monitor.py`: Background service for printer polling.
-*   `templates/`: HTML templates for the UI.
-*   `requirements.txt`: Python package dependencies.
+```
+smartPrinterSystem/
+├── dashboard.py      # Main Flask app & business logic
+├── monitor.py        # Background printer monitoring service
+├── templates/        # Jinja2 HTML templates
+├── requirements.txt  # Python dependencies
+└── .env.production   # Environment configuration
+```
+
+---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request.
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Open a Pull Request
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the **MIT License**.
+
+---
+
+**Author:** Thebe Ledwaba
