@@ -379,21 +379,6 @@ smartPrinterSystem/
 
 ---
 
-## Screenshots
-
-> **Note**: Add screenshots of your dashboard, reports, and analytics here to showcase the system.
-
-### Dashboard Overview
-*Coming soon - Dashboard showing printer fleet status*
-
-### Analytics & Reports
-*Coming soon - Executive dashboard with charts and metrics*
-
-### Alert Management
-*Coming soon - Alert notification and acknowledgment interface*
-
----
-
 ## Contributing
 
 We welcome contributions! Here's how to get started:
@@ -445,3 +430,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 **Author:** Thebe Ledwaba
 
 **Version:** 1.0.0 | [Changelog](CHANGELOG.md)
+
