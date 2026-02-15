@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "smart-printer-system"
+version = "0.1.0"
+description = "Enterprise-grade printer monitoring and analytics platform"
+authors = ["Thebe Ledwaba"]
+readme = "README.md"
+packages = [{include = "smart_printer_system", from = "."}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+flask = "^3.0.0"
+flask-login = "^0.6.3"
+pysnmp = "^4.4.12"
+pyasn1 = "^0.5.1"
+ping3 = "^4.0.8"
+apscheduler = "^3.10.4"
+matplotlib = "^3.8.0"
+numpy = "^1.26.0"
+email-validator = "^2.1.0"
+psycopg2-binary = "^2.9.9"
+python-dotenv = "^1.0.0"
+reportlab = "^4.0.8"
+flask-limiter = "^3.5.0"
+gunicorn = "^21.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+ruff = "^0.1.13"
+mypy = "^1.8.0"
+black = "^24.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
